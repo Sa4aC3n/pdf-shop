@@ -1,0 +1,78 @@
+<resources>
+    <string name="app_name">PDF Shop</string>
+    <string name="app_subtitle">أدوات مستندات وPDF أوفلاين</string>
+
+    <!-- Navigation & Tabs -->
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_history">السجل</string>
+    <string name="nav_settings">الإعدادات</string>
+
+    <!-- Home Categories -->
+    <string name="category_scan">مسح وكاميرا</string>
+    <string name="category_organize">تنظيم وتعديل</string>
+    <string name="category_convert">تحويل وتصدير</string>
+    <string name="category_optimize">تحسين وضغط</string>
+    <string name="category_ocr">التعرف الضوئي OCR</string>
+
+    <!-- Tools -->
+    <string name="tool_scanner">ماسح المستندات</string>
+    <string name="tool_scanner_desc">التقاط متعدد مع تصحيح المنظور والقص</string>
+    <string name="tool_images_to_pdf">صور إلى PDF</string>
+    <string name="tool_images_to_pdf_desc">تحويل مجموعة صور إلى ملف PDF واحد</string>
+    <string name="tool_merge">دمج PDF</string>
+    <string name="tool_merge_desc">دمج ملفات متعددة في ملف واحد مرتب</string>
+    <string name="tool_split">تقسيم وتنظيم</string>
+    <string name="tool_split_desc">استخراج أو حذف أو إعادة ترتيب الصفحات</string>
+    <string name="tool_pdf_to_images">PDF إلى صور</string>
+    <string name="tool_pdf_to_images_desc">تصدير صفحات PDF إلى صور JPG عالية الدقة</string>
+    <string name="tool_compress">ضغط PDF</string>
+    <string name="tool_compress_desc">تقليل حجم الملف مع مقارنة شفافة بالبايت</string>
+    <string name="tool_watermark">علامة مائية</string>
+    <string name="tool_watermark_desc">إضافة نص أو ختم لحماية المستند</string>
+    <string name="tool_ocr">استخراج النص (OCR)</string>
+    <string name="tool_ocr_desc">تعرف ضوئي عربي وإنجليزي محلي بالكامل</string>
+    <string name="tool_repair">محاولة إصلاح PDF</string>
+    <string name="tool_repair_desc">استرداد الملفات التالفة مع تقرير شفاف</string>
+
+    <!-- Status Badges -->
+    <string name="status_available">متاح</string>
+    <string name="status_experimental">تجريبي</string>
+    <string name="status_coming_soon">قريبًا</string>
+
+    <!-- Actions -->
+    <string name="action_select_files">اختيار الملفات</string>
+    <string name="action_save_to">حفظ في…</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="action_retry">إعادة المحاولة</string>
+    <string name="action_clear_history">مسح السجل</string>
+    <string name="action_confirm">تأكيد</string>
+    <string name="action_close">إغلاق</string>
+
+    <!-- History Screen -->
+    <string name="history_title">سجل العمليات</string>
+    <string name="history_empty_title">لا توجد عمليات سابقة</string>
+    <string name="history_empty_desc">الملفات المعالجة ستظهر هنا كبيانات وصفية للرجوع إليها سريعاً دون استهلاك مساحة إضافية.</string>
+    <string name="history_file_unavailable">الملف غير متاح (تم نقله أو حذفه)</string>
+    <string name="history_clear_confirm_title">مسح سجل العمليات؟</string>
+    <string name="history_clear_confirm_desc">سيتم حذف المراجع والبيانات الوصفية فقط، ولن تتأثر ملفاتك الأصلية أو الناتجة.</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_theme">المظهر</string>
+    <string name="settings_theme_system">تلقائي (حسب النظام)</string>
+    <string name="settings_theme_light">فاتح</string>
+    <string name="settings_theme_dark">داكن</string>
+    <string name="settings_language">اللغة</string>
+    <string name="settings_language_ar">العربية (RTL)</string>
+    <string name="settings_language_en">English (LTR)</string>
+    <string name="settings_security_lock">قفل التطبيق</string>
+    <string name="settings_security_lock_desc">طلب بصمة الإصبع أو قفل الشاشة عند الفتح</string>
+    <string name="settings_privacy_badge">محلي 100% بدون إنترنت</string>
+    <string name="settings_privacy_desc">جميع معالجات المستندات تتم على جهازك محلياً. لا يتم إرسال أي بايت لخوادم خارجية.</string>
+    <string name="settings_about">حول التطبيق</string>
+
+    <!-- Common States -->
+    <string name="state_processing">جارٍ المعالجة محلياً…</string>
+    <string name="state_success">تمت العملية بنجاح</string>
+    <string name="state_error">حدث خطأ أثناء العملية</string>
+</resources>
