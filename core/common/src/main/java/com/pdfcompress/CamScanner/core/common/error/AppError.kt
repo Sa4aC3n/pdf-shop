@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.core.common.error
+package com.pdfcompress.CamScanner.core.common.error
 
 sealed class AppError(
     open val message: String,
@@ -10,6 +10,7 @@ sealed class AppError(
     data class OutOfMemory(override val message: String = "نفاد ذاكرة الجهاز أثناء المعالجة") : AppError(message)
     data class InsufficientStorage(override val message: String = "مساحة التخزين غير كافية لحفظ الملف الناتج") : AppError(message)
     data class OperationCancelled(override val message: String = "تم إلغاء العملية بأمان") : AppError(message)
+    data class UnsupportedFormat(override val message: String = "صيغة الملف غير مدعومة") : AppError(message)
     data class UnsupportedFeature(override val message: String = "هذه الخاصية غير مدعومة لهذا الملف") : AppError(message)
     data class Unknown(override val message: String, override val cause: Throwable? = null) : AppError(message, cause)
 }

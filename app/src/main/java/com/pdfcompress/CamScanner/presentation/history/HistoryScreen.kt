@@ -165,7 +165,7 @@ fun HistoryItemCard(item: HistoryItemUi) {
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertizontally) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -218,7 +218,7 @@ fun HistoryItemCard(item: HistoryItemUi) {
 
             if (record.outputDocumentName != null) {
                 Spacer(modifier = Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertizontally) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "الملف الناتج: ${record.outputDocumentName}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -243,11 +243,12 @@ fun HistoryItemCard(item: HistoryItemUi) {
                 }
             }
 
-            if (record.outputSizeBytes != null && record.outputSizeBytes > 0) {
-                val sizeStr = if (record.outputSizeBytes > 1024 * 1024) {
-                    String.format("%.2f ميجابايت", record.outputSizeBytes / (1024f * 1024f))
+            val outputSize = record.outputSizeBytes
+            if (outputSize != null && outputSize > 0) {
+                val sizeStr = if (outputSize > 1024 * 1024) {
+                    String.format("%.2f ميجابايت", outputSize / (1024f * 1024f))
                 } else {
-                    String.format("%.1f كيلوبايت", record.outputSizeBytes / 1024f)
+                    String.format("%.1f كيلوبايت", outputSize / 1024f)
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -257,19 +258,21 @@ fun HistoryItemCard(item: HistoryItemUi) {
                 )
             }
 
-            if (record.summary != null) {
+            val summaryText = record.summary
+            if (summaryText != null) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = record.summary,
+                    text = summaryText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            if (record.errorMessage != null) {
+            val errorMsg = record.errorMessage
+            if (errorMsg != null) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "الخطأ: ${record.errorMessage}",
+                    text = "الخطأ: $errorMsg",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )

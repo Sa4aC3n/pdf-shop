@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.domain.model
+package com.pdfcompress.CamScanner.domain.model
 
 enum class ToolType {
     MERGE,
@@ -7,6 +7,8 @@ enum class ToolType {
     SCANNER,
     COMPRESS,
     WATERMARK,
+    PDF_TO_IMAGES,
+    EXTRACT_TEXT,
     OCR,
     REPAIR
 }

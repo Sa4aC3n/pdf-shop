@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.presentation.split
+package com.pdfcompress.CamScanner.presentation.split
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -171,7 +171,7 @@ fun SplitScreen(
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertizontally
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(

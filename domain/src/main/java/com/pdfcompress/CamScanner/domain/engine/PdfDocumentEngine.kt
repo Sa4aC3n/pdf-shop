@@ -4,6 +4,9 @@ import android.net.Uri
 import com.pdfcompress.CamScanner.core.common.result.AppResult
 import com.pdfcompress.CamScanner.domain.model.CompressionLevel
 import com.pdfcompress.CamScanner.domain.model.CompressionResult
+import com.pdfcompress.CamScanner.domain.model.ExportImagesResult
+import com.pdfcompress.CamScanner.domain.model.RepairReport
+import com.pdfcompress.CamScanner.domain.model.TextExtractionResult
 import com.pdfcompress.CamScanner.domain.model.WatermarkOptions
 
 data class EngineProgress(
@@ -45,6 +48,24 @@ interface PdfDocumentEngine {
         destinationUri: Uri,
         onProgress: (EngineProgress) -> Unit
     ): AppResult<Long>
+
+    suspend fun pdfToImages(
+        sourceUri: Uri,
+        selectedPages: List<Int>,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<ExportImagesResult>
+
+    suspend fun extractText(
+        sourceUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<TextExtractionResult>
+
+    suspend fun repair(
+        sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<RepairReport>
 
     suspend fun getPageCount(sourceUri: Uri): Int
 }

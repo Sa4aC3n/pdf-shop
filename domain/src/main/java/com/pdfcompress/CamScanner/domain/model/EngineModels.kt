@@ -19,3 +19,23 @@ data class WatermarkOptions(
     val opacity: Float = 0.25f,
     val rotationDegrees: Float = 45f
 )
+
+data class TextExtractionResult(
+    val text: String,
+    val characterCount: Int,
+    val wordCount: Int,
+    val pageCount: Int
+)
+
+data class RepairReport(
+    val isSuccess: Boolean,
+    val recoveredPagesCount: Int,
+    val outputSizeBytes: Long,
+    val diagnosisMessage: String
+)
+
+data class ExportImagesResult(
+    val totalExportedPages: Int,
+    val outputSizeBytes: Long,
+    val isZipArchive: Boolean
+)

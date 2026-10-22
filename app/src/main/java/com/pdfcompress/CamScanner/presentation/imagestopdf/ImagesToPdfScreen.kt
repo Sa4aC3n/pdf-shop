@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.presentation.imagestopdf
+package com.pdfcompress.CamScanner.presentation.imagestopdf
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -261,7 +261,7 @@ fun SelectedImageCard(
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertizontally
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
@@ -301,7 +301,7 @@ fun SelectedImageCard(
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertizontally) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onMoveUp, enabled = index > 0) {
                     Icon(
                         imageVector = Icons.Default.ArrowUpward,

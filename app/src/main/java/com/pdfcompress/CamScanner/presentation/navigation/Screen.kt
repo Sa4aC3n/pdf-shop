@@ -9,4 +9,7 @@ sealed class Screen(val route: String) {
     data object Split : Screen("split")
     data object Compress : Screen("compress")
     data object Watermark : Screen("watermark")
+    data object PdfToImages : Screen("pdf_to_images")
+    data object ExtractText : Screen("extract_text")
+    data object Repair : Screen("repair")
 }

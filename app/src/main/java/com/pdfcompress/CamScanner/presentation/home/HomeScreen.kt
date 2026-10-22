@@ -18,12 +18,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CallSplit
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MergeType
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.WaterDamage
 import androidx.compose.material3.AlertDialog
@@ -64,6 +67,9 @@ fun HomeScreen(
     onNavigateToSplit: () -> Unit,
     onNavigateToCompress: () -> Unit,
     onNavigateToWatermark: () -> Unit,
+    onNavigateToPdfToImages: () -> Unit,
+    onNavigateToExtractText: () -> Unit,
+    onNavigateToRepair: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var dialogToolTitle by remember { mutableStateOf<String?>(null) }
@@ -113,31 +119,50 @@ fun HomeScreen(
             isAvailable = true,
             badgeText = "جاهز ومكتمل",
             route = "watermark"
+        ),
+        ToolDefinition(
+            id = "pdf_to_images",
+            title = "تحويل PDF إلى صور",
+            description = "تصدير صفحات المستند بصيغة JPG عالية الدقة أو كملف ZIP مجمع",
+            icon = Icons.Default.PhotoLibrary,
+            isAvailable = true,
+            badgeText = "جاهز ومكتمل",
+            route = "pdf_to_images"
+        ),
+        ToolDefinition(
+            id = "extract_text",
+            title = "استخراج النصوص",
+            description = "استخراج كامل النصوص الرقمية والبحث فيها ونسخها أو حفظها كملف TXT",
+            icon = Icons.Default.Description,
+            isAvailable = true,
+            badgeText = "جاهز ومكتمل",
+            route = "extract_text"
+        ),
+        ToolDefinition(
+            id = "repair",
+            title = "محاولة إصلاح PDF",
+            description = "فحص واسترداد الملفات التالفة مع تقرير شفاف بحالة الاستعادة",
+            icon = Icons.Default.Build,
+            isAvailable = true,
+            badgeText = "جاهز ومكتمل",
+            route = "repair"
         )
     )
 
     val upcomingTools = listOf(
         ToolDefinition(
             id = "scanner",
-            title = "ماسح المستندات",
-            description = "التقاط عبر الكاميرا مع تصحيح المنظور والقص التلقائي",
+            title = "ماسح المستندات بالكاميرا",
+            description = "التقاط الوثائق الورقية وتعديل المنظور والفلاتر الضوئية أوفلاين",
             icon = Icons.Default.CameraAlt,
             isAvailable = false,
             badgeText = "قريبًا"
         ),
         ToolDefinition(
             id = "ocr",
-            title = "التعرف الضوئي OCR",
-            description = "استخراج النصوص العربية والإنجليزية وبناء PDF قابل للبحث",
+            title = "التعرف الضوئي OCR للصور الممسوحة",
+            description = "استخراج النصوص العربية من الصور الممسوحة وبناء طبقة بحث ذكية",
             icon = Icons.Default.FindInPage,
-            isAvailable = false,
-            badgeText = "قريبًا"
-        ),
-        ToolDefinition(
-            id = "repair",
-            title = "محاولة إصلاح PDF",
-            description = "استرداد الملفات التالفة مع تقرير شفاف بحالة الاستعادة",
-            icon = Icons.Default.Security,
             isAvailable = false,
             badgeText = "قريبًا"
         )
@@ -176,6 +201,9 @@ fun HomeScreen(
                         "split" -> onNavigateToSplit()
                         "compress" -> onNavigateToCompress()
                         "watermark" -> onNavigateToWatermark()
+                        "pdf_to_images" -> onNavigateToPdfToImages()
+                        "extract_text" -> onNavigateToExtractText()
+                        "repair" -> onNavigateToRepair()
                     }
                 }
             )
@@ -232,7 +260,7 @@ fun PrivacyCard() {
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertizontally
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
@@ -283,7 +311,7 @@ fun ToolCard(
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertizontally
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
@@ -305,7 +333,7 @@ fun ToolCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertizontally) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = tool.title,
                         style = MaterialTheme.typography.titleMedium,

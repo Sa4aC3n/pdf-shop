@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.core.ui.components
+package com.pdfcompress.CamScanner.core.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -35,7 +35,7 @@ fun ErrorBanner(
             .padding(16.dp)
     ) {
         Row(
-            verticalAlignment = Alignment.CenterVertizontally,
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(

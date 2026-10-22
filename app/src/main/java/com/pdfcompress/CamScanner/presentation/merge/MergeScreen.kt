@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.presentation.merge
+package com.pdfcompress.CamScanner.presentation.merge
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -260,7 +260,7 @@ fun SelectedPdfCard(
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertizontally
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
@@ -300,7 +300,7 @@ fun SelectedPdfCard(
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertizontally) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = onMoveUp,
                     enabled = index > 0

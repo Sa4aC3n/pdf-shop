@@ -15,10 +15,13 @@ import com.pdfcompress.CamScanner.domain.repository.SettingsRepository
 import com.pdfcompress.CamScanner.domain.usecase.AddWatermarkUseCase
 import com.pdfcompress.CamScanner.domain.usecase.ClearHistoryUseCase
 import com.pdfcompress.CamScanner.domain.usecase.CompressPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.ExtractTextUseCase
 import com.pdfcompress.CamScanner.domain.usecase.GetHistoryUseCase
 import com.pdfcompress.CamScanner.domain.usecase.GetSettingsUseCase
 import com.pdfcompress.CamScanner.domain.usecase.ImagesToPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.MergePdfsUseCase
+import com.pdfcompress.CamScanner.domain.usecase.PdfToImagesUseCase
+import com.pdfcompress.CamScanner.domain.usecase.RepairPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.SplitPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.UpdateSettingsUseCase
 
@@ -65,6 +68,18 @@ class AppContainer(private val context: Context) {
 
     val addWatermarkUseCase: AddWatermarkUseCase by lazy {
         AddWatermarkUseCase(pdfEngine, historyRepository)
+    }
+
+    val pdfToImagesUseCase: PdfToImagesUseCase by lazy {
+        PdfToImagesUseCase(pdfEngine, historyRepository)
+    }
+
+    val extractTextUseCase: ExtractTextUseCase by lazy {
+        ExtractTextUseCase(pdfEngine, historyRepository)
+    }
+
+    val repairPdfUseCase: RepairPdfUseCase by lazy {
+        RepairPdfUseCase(pdfEngine, historyRepository)
     }
 
     val getHistoryUseCase: GetHistoryUseCase by lazy {

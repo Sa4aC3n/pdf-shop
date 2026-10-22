@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -26,6 +27,8 @@ import androidx.navigation.compose.rememberNavController
 import com.pdfcompress.CamScanner.AppContainer
 import com.pdfcompress.CamScanner.presentation.compress.CompressScreen
 import com.pdfcompress.CamScanner.presentation.compress.CompressViewModel
+import com.pdfcompress.CamScanner.presentation.extracttext.ExtractTextScreen
+import com.pdfcompress.CamScanner.presentation.extracttext.ExtractTextViewModel
 import com.pdfcompress.CamScanner.presentation.history.HistoryScreen
 import com.pdfcompress.CamScanner.presentation.history.HistoryViewModel
 import com.pdfcompress.CamScanner.presentation.home.HomeScreen
@@ -33,6 +36,10 @@ import com.pdfcompress.CamScanner.presentation.imagestopdf.ImagesToPdfScreen
 import com.pdfcompress.CamScanner.presentation.imagestopdf.ImagesToPdfViewModel
 import com.pdfcompress.CamScanner.presentation.merge.MergeScreen
 import com.pdfcompress.CamScanner.presentation.merge.MergeViewModel
+import com.pdfcompress.CamScanner.presentation.pdftoimages.PdfToImagesScreen
+import com.pdfcompress.CamScanner.presentation.pdftoimages.PdfToImagesViewModel
+import com.pdfcompress.CamScanner.presentation.repair.RepairScreen
+import com.pdfcompress.CamScanner.presentation.repair.RepairViewModel
 import com.pdfcompress.CamScanner.presentation.settings.SettingsScreen
 import com.pdfcompress.CamScanner.presentation.settings.SettingsViewModel
 import com.pdfcompress.CamScanner.presentation.split.SplitScreen
@@ -136,7 +143,10 @@ fun AppNavHost(
                     onNavigateToImagesToPdf = { navController.navigate(Screen.ImagesToPdf.route) },
                     onNavigateToSplit = { navController.navigate(Screen.Split.route) },
                     onNavigateToCompress = { navController.navigate(Screen.Compress.route) },
-                    onNavigateToWatermark = { navController.navigate(Screen.Watermark.route) }
+                    onNavigateToWatermark = { navController.navigate(Screen.Watermark.route) },
+                    onNavigateToPdfToImages = { navController.navigate(Screen.PdfToImages.route) },
+                    onNavigateToExtractText = { navController.navigate(Screen.ExtractText.route) },
+                    onNavigateToRepair = { navController.navigate(Screen.Repair.route) }
                 )
             }
 
@@ -222,6 +232,47 @@ fun AppNavHost(
                 )
                 WatermarkScreen(
                     viewModel = watermarkViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.PdfToImages.route) {
+                val pdfToImagesViewModel: PdfToImagesViewModel = viewModel(
+                    factory = PdfToImagesViewModel.provideFactory(
+                        useCase = container.pdfToImagesUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                PdfToImagesScreen(
+                    viewModel = pdfToImagesViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.ExtractText.route) {
+                val context = LocalContext.current
+                val extractTextViewModel: ExtractTextViewModel = viewModel(
+                    factory = ExtractTextViewModel.provideFactory(
+                        useCase = container.extractTextUseCase,
+                        safHelper = container.safHelper,
+                        context = context
+                    )
+                )
+                ExtractTextScreen(
+                    viewModel = extractTextViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.Repair.route) {
+                val repairViewModel: RepairViewModel = viewModel(
+                    factory = RepairViewModel.provideFactory(
+                        useCase = container.repairPdfUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                RepairScreen(
+                    viewModel = repairViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

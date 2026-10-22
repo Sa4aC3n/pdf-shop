@@ -25,6 +25,16 @@ import com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory
 import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
 import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
 import com.tom_roush.pdfbox.util.Matrix
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
+import com.pdfcompress.CamScanner.domain.model.ExportImagesResult
+import com.pdfcompress.CamScanner.domain.model.RepairReport
+import com.pdfcompress.CamScanner.domain.model.TextExtractionResult
+import com.tom_roush.pdfbox.text.PDFTextStripper
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -461,7 +471,7 @@ class PdfBoxDocumentEngine(
                 contentStream.beginText()
                 contentStream.setFont(font, fontSize)
 
-                val rotationRad = Math.toRadians(options.rotationDegrees.toDouble()).toFloat()
+                val rotationRad = Math.toRadians(options.rotationDegrees.toDouble())
                 // Transform to rotate at center
                 val matrix = Matrix.getRotateInstance(rotationRad, centerX, centerY)
                 contentStream.setTextMatrix(matrix)
@@ -506,6 +516,239 @@ class PdfBoxDocumentEngine(
             AppResult.Error(AppError.OutOfMemory("نفاد ذاكرة الجهاز أثناء إضافة العلامة المائية"))
         } catch (e: Exception) {
             AppResult.Error(AppError.Unknown(e.localizedMessage ?: "حدث خطأ أثناء تطبيق العلامة المائية", e))
+        } finally {
+            tempFileManager.deleteFileSafely(tempInputFile)
+            tempFileManager.deleteFileSafely(tempOutputFile)
+        }
+    }
+
+    override suspend fun pdfToImages(
+        sourceUri: Uri,
+        selectedPages: List<Int>,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<ExportImagesResult> = withContext(dispatchers.io) {
+        var tempInputFile: File? = null
+        var tempOutputFile: File? = null
+        var pfd: ParcelFileDescriptor? = null
+        var renderer: PdfRenderer? = null
+
+        try {
+            onProgress(EngineProgress(10, "تحضير المستند لقراءة الصفحات"))
+
+            tempInputFile = tempFileManager.createTempPdfFile("pdf_to_img_source")
+            val copied = tempFileManager.copyUriToTempFile(sourceUri, tempInputFile)
+            if (!copied || !tempInputFile.exists()) {
+                return@withContext AppResult.Error(AppError.FileNotFound("تعذر فتح ملف الـ PDF الأصلي"))
+            }
+
+            pfd = ParcelFileDescriptor.open(tempInputFile, ParcelFileDescriptor.MODE_READ_ONLY)
+            renderer = PdfRenderer(pfd)
+
+            val totalAvailable = renderer.pageCount
+            val pagesToExport = selectedPages.filter { it in 1..totalAvailable }
+            if (pagesToExport.isEmpty()) {
+                return@withContext AppResult.Error(AppError.Unknown("الصفحات المحددة غير موجودة في المستند"))
+            }
+
+            val isSinglePage = pagesToExport.size == 1
+
+            if (isSinglePage) {
+                tempOutputFile = tempFileManager.createTempImageFile("jpg")
+                val pageIndex = pagesToExport[0] - 1
+                val page = renderer.openPage(pageIndex)
+
+                val bmpWidth = (page.width * 2).coerceAtLeast(1)
+                val bmpHeight = (page.height * 2).coerceAtLeast(1)
+                val bitmap = Bitmap.createBitmap(bmpWidth, bmpHeight, Bitmap.Config.ARGB_8888)
+
+                val canvas = Canvas(bitmap)
+                canvas.drawColor(Color.WHITE)
+
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                page.close()
+
+                FileOutputStream(tempOutputFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                }
+                bitmap.recycle()
+
+                onProgress(EngineProgress(90, "حفظ الصورة الناتجة"))
+                val saved = tempFileManager.copyFileToUri(tempOutputFile, destinationUri)
+                if (!saved) {
+                    return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ الصورة في الوجهة المختارة"))
+                }
+
+                onProgress(EngineProgress(100, "اكتمل تصدير الصورة"))
+                AppResult.Success(
+                    ExportImagesResult(
+                        totalExportedPages = 1,
+                        outputSizeBytes = tempOutputFile.length(),
+                        isZipArchive = false
+                    )
+                )
+            } else {
+                // Export multiple pages into a ZIP archive
+                tempOutputFile = File(tempFileManager.createTempPdfFile("export_images").parentFile, "pages_${System.currentTimeMillis()}.zip")
+                val zipOut = ZipOutputStream(FileOutputStream(tempOutputFile))
+
+                for ((index, pageNum) in pagesToExport.withIndex()) {
+                    val page = renderer.openPage(pageNum - 1)
+                    val bmpW = (page.width * 2).coerceAtLeast(1)
+                    val bmpH = (page.height * 2).coerceAtLeast(1)
+                    val bitmap = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
+
+                    val canvas = Canvas(bitmap)
+                    canvas.drawColor(Color.WHITE)
+                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    page.close()
+
+                    val entryName = String.format("page_%03d.jpg", pageNum)
+                    zipOut.putNextEntry(ZipEntry(entryName))
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 88, zipOut)
+                    zipOut.closeEntry()
+                    bitmap.recycle()
+
+                    val pct = 10 + ((index + 1) * 75 / pagesToExport.size)
+                    onProgress(EngineProgress(pct, "تصدير الصفحة $pageNum من ${pagesToExport.size}"))
+                }
+                zipOut.close()
+
+                onProgress(EngineProgress(90, "حفظ الأرشيف المضغوط للصور"))
+                val saved = tempFileManager.copyFileToUri(tempOutputFile, destinationUri)
+                if (!saved) {
+                    return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ أرشيف الصور في الوجهة المحددة"))
+                }
+
+                onProgress(EngineProgress(100, "اكتمل تصدير أرشيف الصور"))
+                AppResult.Success(
+                    ExportImagesResult(
+                        totalExportedPages = pagesToExport.size,
+                        outputSizeBytes = tempOutputFile.length(),
+                        isZipArchive = true
+                    )
+                )
+            }
+        } catch (oom: OutOfMemoryError) {
+            AppResult.Error(AppError.OutOfMemory("نفاد ذاكرة الجهاز أثناء تصدير الصور"))
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.localizedMessage ?: "حدث خطأ أثناء تصدير الصور", e))
+        } finally {
+            try { renderer?.close() } catch (_: Exception) {}
+            try { pfd?.close() } catch (_: Exception) {}
+            tempFileManager.deleteFileSafely(tempInputFile)
+            tempFileManager.deleteFileSafely(tempOutputFile)
+        }
+    }
+
+    override suspend fun extractText(
+        sourceUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<TextExtractionResult> = withContext(dispatchers.io) {
+        var tempInputFile: File? = null
+        try {
+            onProgress(EngineProgress(15, "تحضير المستند لاستخراج النصوص"))
+
+            tempInputFile = tempFileManager.createTempPdfFile("extract_text_source")
+            val copied = tempFileManager.copyUriToTempFile(sourceUri, tempInputFile)
+            if (!copied || !tempInputFile.exists()) {
+                return@withContext AppResult.Error(AppError.FileNotFound("تعذر فتح ملف الـ PDF الأصلي"))
+            }
+
+            onProgress(EngineProgress(40, "تحليل وفهرسة خطوط وتدفقات النصوص"))
+
+            val doc = PDDocument.load(tempInputFile)
+            val stripper = PDFTextStripper()
+            val text = stripper.getText(doc) ?: ""
+            val totalPages = doc.numberOfPages
+            doc.close()
+
+            onProgress(EngineProgress(90, "معالجة وإحصاء الكلمات"))
+
+            val words = text.split("\\s+".toRegex()).filter { it.isNotBlank() }
+
+            onProgress(EngineProgress(100, "تم استخراج النصوص بنجاح"))
+            AppResult.Success(
+                TextExtractionResult(
+                    text = text,
+                    characterCount = text.length,
+                    wordCount = words.size,
+                    pageCount = totalPages
+                )
+            )
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.localizedMessage ?: "تعذر استخراج النصوص من هذا المستند", e))
+        } finally {
+            tempFileManager.deleteFileSafely(tempInputFile)
+        }
+    }
+
+    override suspend fun repair(
+        sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<RepairReport> = withContext(dispatchers.io) {
+        var tempInputFile: File? = null
+        var tempOutputFile: File? = null
+
+        try {
+            onProgress(EngineProgress(15, "فحص بنية بايتات ملف الـ PDF والتلف"))
+
+            tempInputFile = tempFileManager.createTempPdfFile("repair_source")
+            val copied = tempFileManager.copyUriToTempFile(sourceUri, tempInputFile)
+            if (!copied || !tempInputFile.exists() || tempInputFile.length() == 0L) {
+                return@withContext AppResult.Error(AppError.FileNotFound("الملف الأصلي غير موجود أو فارغ تماماً"))
+            }
+
+            onProgress(EngineProgress(40, "محاولة إعادة بناء جداول المراجع والمقطورات (XRef Rebuild)"))
+
+            // Attempt loading with ScratchFile to reconstruct corrupted xref streams
+            val doc = try {
+                PDDocument.load(tempInputFile, MemoryUsageSetting.setupTempFileOnly())
+            } catch (e: Exception) {
+                return@withContext AppResult.Error(
+                    AppError.CorruptedPdf("تلف جذري في الملف يتعذر استرداده محلياً: ${e.localizedMessage}")
+                )
+            }
+
+            tempOutputFile = tempFileManager.createTempPdfFile("repair_output")
+            val recoveredPages = doc.numberOfPages
+
+            if (recoveredPages == 0) {
+                doc.close()
+                return@withContext AppResult.Error(
+                    AppError.CorruptedPdf("تم فحص الملف ولكن لم يتم العثور على أي صفحات صالحة للاسترداد")
+                )
+            }
+
+            onProgress(EngineProgress(80, "إعادة كتابة وتوليد مستند PDF سليم"))
+
+            FileOutputStream(tempOutputFile).use { out ->
+                doc.save(out)
+            }
+            doc.close()
+
+            val saved = tempFileManager.copyFileToUri(tempOutputFile, destinationUri)
+            if (!saved) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ المستند المسترد"))
+            }
+
+            val finalSize = safHelper.getFileSize(destinationUri).let {
+                if (it > 0) it else tempOutputFile.length()
+            }
+
+            onProgress(EngineProgress(100, "اكتمل الإصلاح بنجاح"))
+
+            AppResult.Success(
+                RepairReport(
+                    isSuccess = true,
+                    recoveredPagesCount = recoveredPages,
+                    outputSizeBytes = finalSize,
+                    diagnosisMessage = "تمت إعادة بناء جداول المراجع واسترداد $recoveredPages صفحة بنجاح"
+                )
+            )
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.localizedMessage ?: "حدث خطأ أثناء محاولة إصلاح المستند", e))
         } finally {
             tempFileManager.deleteFileSafely(tempInputFile)
             tempFileManager.deleteFileSafely(tempOutputFile)

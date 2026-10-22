@@ -7,8 +7,11 @@ import com.pdfcompress.CamScanner.domain.engine.EngineProgress
 import com.pdfcompress.CamScanner.domain.engine.PdfDocumentEngine
 import com.pdfcompress.CamScanner.domain.model.CompressionLevel
 import com.pdfcompress.CamScanner.domain.model.CompressionResult
+import com.pdfcompress.CamScanner.domain.model.ExportImagesResult
 import com.pdfcompress.CamScanner.domain.model.OperationRecord
 import com.pdfcompress.CamScanner.domain.model.OperationStatus
+import com.pdfcompress.CamScanner.domain.model.RepairReport
+import com.pdfcompress.CamScanner.domain.model.TextExtractionResult
 import com.pdfcompress.CamScanner.domain.model.ToolType
 import com.pdfcompress.CamScanner.domain.model.WatermarkOptions
 import com.pdfcompress.CamScanner.domain.repository.HistoryRepository
@@ -106,6 +109,9 @@ class FakePdfDocumentEngine : PdfDocumentEngine {
     var compressResult: AppResult<CompressionResult> = AppResult.Success(CompressionResult(2048, 1024, 50, true))
     var watermarkResult: AppResult<Long> = AppResult.Success(1024L)
     var pageCountToReturn: Int = 5
+    var pdfToImagesResult: AppResult<ExportImagesResult> = AppResult.Success(ExportImagesResult(2, 204800L, true))
+    var extractTextResult: AppResult<TextExtractionResult> = AppResult.Success(TextExtractionResult("sample text", 2, 2, 11))
+    var repairResult: AppResult<RepairReport> = AppResult.Success(RepairReport(true, 5, 10240L, "تم استرداد كافة الصفحات بنجاح"))
 
     override suspend fun merge(
         inputUris: List<Uri>,
@@ -148,6 +154,24 @@ class FakePdfDocumentEngine : PdfDocumentEngine {
         destinationUri: Uri,
         onProgress: (EngineProgress) -> Unit
     ): AppResult<Long> = watermarkResult
+
+    override suspend fun pdfToImages(
+        sourceUri: Uri,
+        selectedPages: List<Int>,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<ExportImagesResult> = pdfToImagesResult
+
+    override suspend fun extractText(
+        sourceUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<TextExtractionResult> = extractTextResult
+
+    override suspend fun repair(
+        sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<RepairReport> = repairResult
 
     override suspend fun getPageCount(sourceUri: Uri): Int = pageCountToReturn
 }
