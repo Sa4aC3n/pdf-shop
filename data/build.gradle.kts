@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "org.videopocket.probe.data"
+    namespace = "com.pdfcompress.CamScanner.data"
     compileSdk = 35
 
     defaultConfig {

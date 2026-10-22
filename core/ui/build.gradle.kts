@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "org.videopocket.probe.core.ui"
+    namespace = "com.pdfcompress.CamScanner.core.ui"
     compileSdk = 35
 
     defaultConfig {

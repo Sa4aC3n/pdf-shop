@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "org.videopocket.probe"
+    namespace = "com.pdfcompress.CamScanner"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "org.videopocket.probe"
+        applicationId = "com.pdfcompress.CamScanner"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
