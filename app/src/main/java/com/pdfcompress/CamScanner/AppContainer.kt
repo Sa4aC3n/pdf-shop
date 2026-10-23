@@ -20,8 +20,10 @@ import com.pdfcompress.CamScanner.domain.usecase.GetHistoryUseCase
 import com.pdfcompress.CamScanner.domain.usecase.GetSettingsUseCase
 import com.pdfcompress.CamScanner.domain.usecase.ImagesToPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.MergePdfsUseCase
+import com.pdfcompress.CamScanner.domain.usecase.OcrUseCase
 import com.pdfcompress.CamScanner.domain.usecase.PdfToImagesUseCase
 import com.pdfcompress.CamScanner.domain.usecase.RepairPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.ScanDocumentUseCase
 import com.pdfcompress.CamScanner.domain.usecase.SplitPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.UpdateSettingsUseCase
 
@@ -80,6 +82,14 @@ class AppContainer(private val context: Context) {
 
     val repairPdfUseCase: RepairPdfUseCase by lazy {
         RepairPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val scanDocumentUseCase: ScanDocumentUseCase by lazy {
+        ScanDocumentUseCase(pdfEngine, historyRepository)
+    }
+
+    val ocrUseCase: OcrUseCase by lazy {
+        OcrUseCase(pdfEngine, historyRepository)
     }
 
     val getHistoryUseCase: GetHistoryUseCase by lazy {

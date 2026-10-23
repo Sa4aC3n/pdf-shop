@@ -70,11 +70,31 @@ fun HomeScreen(
     onNavigateToPdfToImages: () -> Unit,
     onNavigateToExtractText: () -> Unit,
     onNavigateToRepair: () -> Unit,
+    onNavigateToScanner: () -> Unit,
+    onNavigateToOcr: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var dialogToolTitle by remember { mutableStateOf<String?>(null) }
 
     val activeTools = listOf(
+        ToolDefinition(
+            id = "scanner",
+            title = "ماسح المستندات بالكاميرا",
+            description = "التقاط الوثائق الورقية وفلاتر المستندات وتصديرها مباشرة كـ PDF",
+            icon = Icons.Default.CameraAlt,
+            isAvailable = true,
+            badgeText = "جاهز ومكتمل",
+            route = "scanner"
+        ),
+        ToolDefinition(
+            id = "ocr",
+            title = "التعرف الضوئي OCR",
+            description = "استخراج النصوص والتكامل الذكي المباشر مع عدسة Google",
+            icon = Icons.Default.FindInPage,
+            isAvailable = true,
+            badgeText = "جاهز ومكتمل",
+            route = "ocr"
+        ),
         ToolDefinition(
             id = "merge",
             title = "دمج ملفات PDF",
@@ -149,24 +169,7 @@ fun HomeScreen(
         )
     )
 
-    val upcomingTools = listOf(
-        ToolDefinition(
-            id = "scanner",
-            title = "ماسح المستندات بالكاميرا",
-            description = "التقاط الوثائق الورقية وتعديل المنظور والفلاتر الضوئية أوفلاين",
-            icon = Icons.Default.CameraAlt,
-            isAvailable = false,
-            badgeText = "قريبًا"
-        ),
-        ToolDefinition(
-            id = "ocr",
-            title = "التعرف الضوئي OCR للصور الممسوحة",
-            description = "استخراج النصوص العربية من الصور الممسوحة وبناء طبقة بحث ذكية",
-            icon = Icons.Default.FindInPage,
-            isAvailable = false,
-            badgeText = "قريبًا"
-        )
-    )
+    val upcomingTools = emptyList<ToolDefinition>()
 
     LazyColumn(
         modifier = modifier
@@ -196,6 +199,8 @@ fun HomeScreen(
                 tool = tool,
                 onClick = {
                     when (tool.id) {
+                        "scanner" -> onNavigateToScanner()
+                        "ocr" -> onNavigateToOcr()
                         "merge" -> onNavigateToMerge()
                         "images_to_pdf" -> onNavigateToImagesToPdf()
                         "split" -> onNavigateToSplit()
@@ -209,25 +214,27 @@ fun HomeScreen(
             )
         }
 
-        // Section: Upcoming tools
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "أدوات إضافية (قيد التطوير والاختبار المحلي)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        // Section: Upcoming tools (if any)
+        if (upcomingTools.isNotEmpty()) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "أدوات إضافية (قيد التطوير والاختبار المحلي)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-        items(upcomingTools.size) { index ->
-            val tool = upcomingTools[index]
-            ToolCard(
-                tool = tool,
-                onClick = {
-                    dialogToolTitle = tool.title
-                }
-            )
+            items(upcomingTools.size) { index ->
+                val tool = upcomingTools[index]
+                ToolCard(
+                    tool = tool,
+                    onClick = {
+                        dialogToolTitle = tool.title
+                    }
+                )
+            }
         }
     }
 

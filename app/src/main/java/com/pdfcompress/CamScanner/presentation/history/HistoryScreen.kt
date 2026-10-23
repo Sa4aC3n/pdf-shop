@@ -16,13 +16,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CallSplit
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MergeType
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.WaterDamage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -155,7 +160,11 @@ fun HistoryItemCard(item: HistoryItemUi) {
         ToolType.SPLIT -> "استخراج صفحات" to Icons.Default.CallSplit
         ToolType.COMPRESS -> "ضغط PDF" to Icons.Default.Compress
         ToolType.WATERMARK -> "علامة مائية" to Icons.Default.WaterDamage
-        else -> "عملية مستند" to Icons.Default.History
+        ToolType.PDF_TO_IMAGES -> "PDF إلى صور" to Icons.Default.PhotoLibrary
+        ToolType.EXTRACT_TEXT -> "استخراج نصوص" to Icons.Default.Description
+        ToolType.REPAIR -> "إصلاح PDF" to Icons.Default.Build
+        ToolType.SCANNER -> "مسح مستند" to Icons.Default.CameraAlt
+        ToolType.OCR -> "تعرف ضوئي OCR" to Icons.Default.FindInPage
     }
 
     Card(

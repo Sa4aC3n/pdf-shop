@@ -36,10 +36,14 @@ import com.pdfcompress.CamScanner.presentation.imagestopdf.ImagesToPdfScreen
 import com.pdfcompress.CamScanner.presentation.imagestopdf.ImagesToPdfViewModel
 import com.pdfcompress.CamScanner.presentation.merge.MergeScreen
 import com.pdfcompress.CamScanner.presentation.merge.MergeViewModel
+import com.pdfcompress.CamScanner.presentation.ocr.OcrScreen
+import com.pdfcompress.CamScanner.presentation.ocr.OcrViewModel
 import com.pdfcompress.CamScanner.presentation.pdftoimages.PdfToImagesScreen
 import com.pdfcompress.CamScanner.presentation.pdftoimages.PdfToImagesViewModel
 import com.pdfcompress.CamScanner.presentation.repair.RepairScreen
 import com.pdfcompress.CamScanner.presentation.repair.RepairViewModel
+import com.pdfcompress.CamScanner.presentation.scanner.ScannerScreen
+import com.pdfcompress.CamScanner.presentation.scanner.ScannerViewModel
 import com.pdfcompress.CamScanner.presentation.settings.SettingsScreen
 import com.pdfcompress.CamScanner.presentation.settings.SettingsViewModel
 import com.pdfcompress.CamScanner.presentation.split.SplitScreen
@@ -146,7 +150,9 @@ fun AppNavHost(
                     onNavigateToWatermark = { navController.navigate(Screen.Watermark.route) },
                     onNavigateToPdfToImages = { navController.navigate(Screen.PdfToImages.route) },
                     onNavigateToExtractText = { navController.navigate(Screen.ExtractText.route) },
-                    onNavigateToRepair = { navController.navigate(Screen.Repair.route) }
+                    onNavigateToRepair = { navController.navigate(Screen.Repair.route) },
+                    onNavigateToScanner = { navController.navigate(Screen.Scanner.route) },
+                    onNavigateToOcr = { navController.navigate(Screen.Ocr.route) }
                 )
             }
 
@@ -273,6 +279,38 @@ fun AppNavHost(
                 )
                 RepairScreen(
                     viewModel = repairViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.Scanner.route) {
+                val context = LocalContext.current
+                val scannerViewModel: ScannerViewModel = viewModel(
+                    factory = ScannerViewModel.provideFactory(
+                        scanDocumentUseCase = container.scanDocumentUseCase,
+                        safHelper = container.safHelper,
+                        tempFileManager = container.tempFileManager,
+                        context = context
+                    )
+                )
+                ScannerScreen(
+                    viewModel = scannerViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.Ocr.route) {
+                val context = LocalContext.current
+                val ocrViewModel: OcrViewModel = viewModel(
+                    factory = OcrViewModel.provideFactory(
+                        ocrUseCase = container.ocrUseCase,
+                        safHelper = container.safHelper,
+                        tempFileManager = container.tempFileManager,
+                        context = context
+                    )
+                )
+                OcrScreen(
+                    viewModel = ocrViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

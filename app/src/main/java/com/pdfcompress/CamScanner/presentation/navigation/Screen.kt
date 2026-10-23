@@ -12,4 +12,6 @@ sealed class Screen(val route: String) {
     data object PdfToImages : Screen("pdf_to_images")
     data object ExtractText : Screen("extract_text")
     data object Repair : Screen("repair")
+    data object Scanner : Screen("scanner")
+    data object Ocr : Screen("ocr")
 }
