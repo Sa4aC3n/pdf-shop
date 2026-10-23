@@ -18,14 +18,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallSplit
+import androidx.compose.material.icons.automirrored.filled.MergeType
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.CallSplit
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.WaterDamage
@@ -99,7 +99,7 @@ fun HomeScreen(
             id = "merge",
             title = "دمج ملفات PDF",
             description = "دمج عدة ملفات في مستند واحد مع إعادة الترتيب",
-            icon = Icons.Default.MergeType,
+            icon = Icons.AutoMirrored.Filled.MergeType,
             isAvailable = true,
             badgeText = "جاهز ومكتمل",
             route = "merge"
@@ -117,7 +117,7 @@ fun HomeScreen(
             id = "split",
             title = "تقسيم واستخراج صفحات",
             description = "استخراج صفحات محددة من مستند PDF وحفظها كملف مستقل",
-            icon = Icons.Default.CallSplit,
+            icon = Icons.AutoMirrored.Filled.CallSplit,
             isAvailable = true,
             badgeText = "جاهز ومكتمل",
             route = "split"

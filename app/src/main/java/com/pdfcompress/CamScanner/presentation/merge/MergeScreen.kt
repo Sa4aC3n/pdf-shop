@@ -20,12 +20,12 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MergeType
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -120,7 +120,7 @@ fun MergeScreen(
                         modifier = Modifier.weight(1f),
                         enabled = uiState.selectedFiles.size >= 2 && !uiState.isProcessing
                     ) {
-                        Icon(imageVector = Icons.Default.MergeType, contentDescription = null)
+                        Icon(imageVector = Icons.AutoMirrored.Filled.MergeType, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("دمج وحفظ")
                     }

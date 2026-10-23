@@ -466,7 +466,7 @@ class PdfBoxDocumentEngine(
                     nonStrokingAlphaConstant = options.opacity.coerceIn(0.05f, 0.95f)
                 }
                 contentStream.setGraphicsStateParameters(graphicsState)
-                contentStream.setNonStrokingColor(128, 128, 128)
+                contentStream.setNonStrokingColor(0.5f, 0.5f, 0.5f)
 
                 contentStream.beginText()
                 contentStream.setFont(font, fontSize)

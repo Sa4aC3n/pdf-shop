@@ -36,6 +36,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.CameraAlt
@@ -46,7 +47,6 @@ import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -521,7 +521,7 @@ fun PageReviewView(
                 },
                 actions = {
                     IconButton(onClick = onRotate) {
-                        Icon(imageVector = Icons.Default.RotateRight, contentDescription = "تدوير 90°")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.RotateRight, contentDescription = "تدوير 90°")
                     }
                     IconButton(onClick = { onDelete(uiState.activePageIndex) }) {
                         Icon(

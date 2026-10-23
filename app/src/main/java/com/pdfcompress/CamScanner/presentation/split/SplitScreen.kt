@@ -22,7 +22,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CallSplit
+import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FileOpen
@@ -120,7 +120,7 @@ fun SplitScreen(
                         modifier = Modifier.weight(1f),
                         enabled = uiState.selectedPages.isNotEmpty() && !uiState.isProcessing
                     ) {
-                        Icon(imageVector = Icons.Default.CallSplit, contentDescription = null)
+                        Icon(imageVector = Icons.AutoMirrored.Filled.CallSplit, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("استخراج (${uiState.selectedPages.size})")
                     }
@@ -149,7 +149,7 @@ fun SplitScreen(
                     title = "اختر ملف PDF لتصفح واستخراج صفحاته",
                     description = "حدد المستند لعرض إجمالي عدد الصفحات واختيار الصفحات المراد استخراجها في ملف مستقل.",
                     modifier = Modifier.weight(1f),
-                    icon = Icons.Default.CallSplit
+                    icon = Icons.AutoMirrored.Filled.CallSplit
                 )
             } else if (uiState.isReadingPages) {
                 Box(
