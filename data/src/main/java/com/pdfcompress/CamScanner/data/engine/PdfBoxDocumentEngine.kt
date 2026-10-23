@@ -22,11 +22,14 @@ import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory
+import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
 import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
 import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
 import com.tom_roush.pdfbox.util.Matrix
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import com.pdfcompress.CamScanner.domain.model.ExportImagesResult
@@ -35,9 +38,14 @@ import com.pdfcompress.CamScanner.domain.model.TextExtractionResult
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 class PdfBoxDocumentEngine(
     private val context: Context,
@@ -59,6 +67,7 @@ class PdfBoxDocumentEngine(
 
             val totalFiles = inputUris.size
             for ((index, uri) in inputUris.withIndex()) {
+                ensureActive()
                 val tempFile = tempFileManager.createTempPdfFile("merge_input_$index")
                 val copied = tempFileManager.copyUriToTempFile(uri, tempFile)
                 if (!copied || !tempFile.exists() || tempFile.length() == 0L) {
@@ -71,6 +80,7 @@ class PdfBoxDocumentEngine(
                 onProgress(EngineProgress(progressPercent, "قراءة الملف ${index + 1} من $totalFiles"))
             }
 
+            ensureActive()
             onProgress(EngineProgress(45, "جارٍ دمج صفحات PDF محلياً"))
 
             tempOutputFile = tempFileManager.createTempPdfFile("merge_output")
@@ -84,6 +94,7 @@ class PdfBoxDocumentEngine(
 
             merger.mergeDocuments(MemoryUsageSetting.setupTempFileOnly())
 
+            ensureActive()
             onProgress(EngineProgress(80, "التحقق من صحة المستند المدمج"))
 
             if (!tempOutputFile.exists() || tempOutputFile.length() == 0L) {
@@ -122,6 +133,8 @@ class PdfBoxDocumentEngine(
             onProgress(EngineProgress(100, "اكتمل الدمج بنجاح"))
             AppResult.Success(finalSize)
 
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (oom: OutOfMemoryError) {
             AppResult.Error(AppError.OutOfMemory("نفاد ذاكرة الجهاز أثناء دمج الملفات"))
         } catch (e: Exception) {
@@ -149,6 +162,7 @@ class PdfBoxDocumentEngine(
             tempOutputFile = tempFileManager.createTempPdfFile("images_output")
 
             for ((index, uri) in imageUris.withIndex()) {
+                ensureActive()
                 val inputStream = safHelper.openInputStream(uri)
                     ?: return@withContext AppResult.Error(
                         AppError.FileNotFound("تعذر قراءة الصورة رقم ${index + 1}")
@@ -176,6 +190,7 @@ class PdfBoxDocumentEngine(
                 onProgress(EngineProgress(currentProgress, "إضافة الصورة ${index + 1} من $totalImages"))
             }
 
+            ensureActive()
             onProgress(EngineProgress(85, "حفظ صفحات PDF وتنسيقها"))
 
             FileOutputStream(tempOutputFile).use { output ->
@@ -205,6 +220,8 @@ class PdfBoxDocumentEngine(
             onProgress(EngineProgress(100, "تم التحويل بنجاح"))
             AppResult.Success(finalSize)
 
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (oom: OutOfMemoryError) {
             AppResult.Error(AppError.OutOfMemory("نفاد ذاكرة الجهاز أثناء معالجة الصور"))
         } catch (e: Exception) {
@@ -234,6 +251,7 @@ class PdfBoxDocumentEngine(
                 )
             }
 
+            ensureActive()
             onProgress(EngineProgress(30, "قراءة الصفحات المحددة"))
 
             val sourceDoc = PDDocument.load(tempInputFile)
@@ -252,6 +270,7 @@ class PdfBoxDocumentEngine(
             }
 
             for ((index, pageNum) in validPages.withIndex()) {
+                ensureActive()
                 val page = sourceDoc.getPage(pageNum - 1)
                 newDoc.addPage(page)
                 val progressPercent = 30 + ((index + 1) * 45 / validPages.size)
@@ -288,6 +307,8 @@ class PdfBoxDocumentEngine(
             onProgress(EngineProgress(100, "اكتمل استخراج الصفحات بنجاح"))
             AppResult.Success(finalSize)
 
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (oom: OutOfMemoryError) {
             AppResult.Error(AppError.OutOfMemory("نفاد ذاكرة الجهاز أثناء استخراج الصفحات"))
         } catch (e: Exception) {
@@ -326,6 +347,7 @@ class PdfBoxDocumentEngine(
 
             val totalPages = doc.numberOfPages
             for ((index, page) in doc.pages.withIndex()) {
+                ensureActive()
                 val resources = page.resources
                 if (resources != null) {
                     for (xName in resources.xObjectNames) {
@@ -367,6 +389,7 @@ class PdfBoxDocumentEngine(
                 onProgress(EngineProgress(pct, "ضغط الصفحة ${index + 1} من $totalPages"))
             }
 
+            ensureActive()
             onProgress(EngineProgress(80, "إعادة كتابة هيكل الـ PDF وضغط الجداول"))
 
             FileOutputStream(tempOutputFile).use { out ->
@@ -380,15 +403,17 @@ class PdfBoxDocumentEngine(
                 )
             }
 
-            val compressedSize = tempOutputFile.length()
-            val isSmaller = compressedSize < originalSize
+            val rawCompressedSize = tempOutputFile.length()
+            val isSmaller = rawCompressedSize < originalSize
+            val fileToSave = if (isSmaller) tempOutputFile else tempInputFile
+            val finalCompressedSize = if (isSmaller) rawCompressedSize else originalSize
             val reductionPct = if (isSmaller && originalSize > 0) {
-                (((originalSize - compressedSize) * 100) / originalSize).toInt()
+                (((originalSize - finalCompressedSize) * 100) / originalSize).toInt()
             } else 0
 
             onProgress(EngineProgress(95, "حفظ المستند في الوجهة المحددة"))
 
-            val saved = tempFileManager.copyFileToUri(tempOutputFile, destinationUri)
+            val saved = tempFileManager.copyFileToUri(fileToSave, destinationUri)
             if (!saved) {
                 return@withContext AppResult.Error(
                     AppError.InsufficientStorage("تعذر حفظ الملف المضغوط في الوجهة المحددة")
@@ -400,12 +425,14 @@ class PdfBoxDocumentEngine(
             AppResult.Success(
                 CompressionResult(
                     originalSizeBytes = originalSize,
-                    compressedSizeBytes = compressedSize,
+                    compressedSizeBytes = finalCompressedSize,
                     reductionPercentage = reductionPct,
                     isSmaller = isSmaller
                 )
             )
 
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (oom: OutOfMemoryError) {
             AppResult.Error(AppError.OutOfMemory("نفاد ذاكرة الجهاز أثناء ضغط المستند"))
         } catch (e: Exception) {
@@ -424,6 +451,7 @@ class PdfBoxDocumentEngine(
     ): AppResult<Long> = withContext(dispatchers.io) {
         var tempInputFile: File? = null
         var tempOutputFile: File? = null
+        var watermarkBitmap: Bitmap? = null
 
         try {
             onProgress(EngineProgress(10, "تحضير المستند الأصلي"))
@@ -436,50 +464,70 @@ class PdfBoxDocumentEngine(
                 )
             }
 
+            ensureActive()
             onProgress(EngineProgress(30, "تجهيز خط ومعلمات العلامة المائية"))
 
             val doc = PDDocument.load(tempInputFile)
             tempOutputFile = tempFileManager.createTempPdfFile("watermark_output")
 
-            val font = PDType1Font.HELVETICA_BOLD
-            val fontSize = options.fontSize
-            val text = options.text
+            val text = options.text.trim().ifEmpty { "WATERMARK" }
+            val scaleFactor = 2.5f
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.rgb(115, 115, 115)
+                textSize = options.fontSize * scaleFactor
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+            }
+
+            val fontMetrics = paint.fontMetrics
+            val textWidth = paint.measureText(text).coerceAtLeast(20f)
+            val textHeight = (fontMetrics.descent - fontMetrics.ascent).coerceAtLeast(20f)
+
+            val rad = Math.toRadians(options.rotationDegrees.toDouble())
+            val cosA = abs(cos(rad)).toFloat()
+            val sinA = abs(sin(rad)).toFloat()
+            val bmpW = (textWidth * cosA + textHeight * sinA + 32f).toInt().coerceAtLeast(64)
+            val bmpH = (textWidth * sinA + textHeight * cosA + 32f).toInt().coerceAtLeast(64)
+
+            watermarkBitmap = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(watermarkBitmap)
+            canvas.translate(bmpW / 2f, bmpH / 2f)
+            canvas.rotate(-options.rotationDegrees)
+            val textOffset = -(fontMetrics.descent + fontMetrics.ascent) / 2f
+            canvas.drawText(text, 0f, textOffset, paint)
+
+            val watermarkImage = LosslessFactory.createFromImage(doc, watermarkBitmap)
+            val drawW = bmpW / scaleFactor
+            val drawH = bmpH / scaleFactor
+
             val totalPages = doc.numberOfPages
 
             for ((index, page) in doc.pages.withIndex()) {
+                ensureActive()
                 val mediaBox = page.mediaBox ?: page.cropBox ?: PDRectangle.A4
                 val centerX = mediaBox.width / 2f
                 val centerY = mediaBox.height / 2f
 
-                // Estimate text center
-                val textWidth = (font.getStringWidth(text) / 1000f) * fontSize
-
-                val contentStream = PDPageContentStream(
+                PDPageContentStream(
                     doc,
                     page,
                     PDPageContentStream.AppendMode.APPEND,
                     true,
                     true
-                )
-
-                val graphicsState = PDExtendedGraphicsState().apply {
-                    nonStrokingAlphaConstant = options.opacity.coerceIn(0.05f, 0.95f)
+                ).use { contentStream ->
+                    val graphicsState = PDExtendedGraphicsState().apply {
+                        nonStrokingAlphaConstant = options.opacity.coerceIn(0.05f, 0.95f)
+                        strokingAlphaConstant = options.opacity.coerceIn(0.05f, 0.95f)
+                    }
+                    contentStream.setGraphicsStateParameters(graphicsState)
+                    contentStream.drawImage(
+                        watermarkImage,
+                        centerX - drawW / 2f,
+                        centerY - drawH / 2f,
+                        drawW,
+                        drawH
+                    )
                 }
-                contentStream.setGraphicsStateParameters(graphicsState)
-                contentStream.setNonStrokingColor(0.5f, 0.5f, 0.5f)
-
-                contentStream.beginText()
-                contentStream.setFont(font, fontSize)
-
-                val rotationRad = Math.toRadians(options.rotationDegrees.toDouble())
-                // Transform to rotate at center
-                val matrix = Matrix.getRotateInstance(rotationRad, centerX, centerY)
-                contentStream.setTextMatrix(matrix)
-
-                contentStream.newLineAtOffset(-textWidth / 2f, 0f)
-                contentStream.showText(text)
-                contentStream.endText()
-                contentStream.close()
 
                 val pct = 30 + ((index + 1) * 55 / totalPages.coerceAtLeast(1))
                 onProgress(EngineProgress(pct, "تطبيق العلامة المائية على الصفحة ${index + 1} من $totalPages"))
@@ -512,11 +560,14 @@ class PdfBoxDocumentEngine(
             onProgress(EngineProgress(100, "تمت إضافة العلامة المائية بنجاح"))
             AppResult.Success(finalSize)
 
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (oom: OutOfMemoryError) {
             AppResult.Error(AppError.OutOfMemory("نفاد ذاكرة الجهاز أثناء إضافة العلامة المائية"))
         } catch (e: Exception) {
             AppResult.Error(AppError.Unknown(e.localizedMessage ?: "حدث خطأ أثناء تطبيق العلامة المائية", e))
         } finally {
+            try { watermarkBitmap?.recycle() } catch (_: Exception) {}
             tempFileManager.deleteFileSafely(tempInputFile)
             tempFileManager.deleteFileSafely(tempOutputFile)
         }
@@ -593,6 +644,7 @@ class PdfBoxDocumentEngine(
                 val zipOut = ZipOutputStream(FileOutputStream(tempOutputFile))
 
                 for ((index, pageNum) in pagesToExport.withIndex()) {
+                    ensureActive()
                     val page = renderer.openPage(pageNum - 1)
                     val bmpW = (page.width * 2).coerceAtLeast(1)
                     val bmpH = (page.height * 2).coerceAtLeast(1)
@@ -629,6 +681,8 @@ class PdfBoxDocumentEngine(
                     )
                 )
             }
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (oom: OutOfMemoryError) {
             AppResult.Error(AppError.OutOfMemory("نفاد ذاكرة الجهاز أثناء تصدير الصور"))
         } catch (e: Exception) {
@@ -655,6 +709,7 @@ class PdfBoxDocumentEngine(
                 return@withContext AppResult.Error(AppError.FileNotFound("تعذر فتح ملف الـ PDF الأصلي"))
             }
 
+            ensureActive()
             onProgress(EngineProgress(40, "تحليل وفهرسة خطوط وتدفقات النصوص"))
 
             val doc = PDDocument.load(tempInputFile)
@@ -663,6 +718,7 @@ class PdfBoxDocumentEngine(
             val totalPages = doc.numberOfPages
             doc.close()
 
+            ensureActive()
             onProgress(EngineProgress(90, "معالجة وإحصاء الكلمات"))
 
             val words = text.split("\\s+".toRegex()).filter { it.isNotBlank() }
@@ -676,6 +732,8 @@ class PdfBoxDocumentEngine(
                     pageCount = totalPages
                 )
             )
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (e: Exception) {
             AppResult.Error(AppError.Unknown(e.localizedMessage ?: "تعذر استخراج النصوص من هذا المستند", e))
         } finally {
@@ -700,6 +758,7 @@ class PdfBoxDocumentEngine(
                 return@withContext AppResult.Error(AppError.FileNotFound("الملف الأصلي غير موجود أو فارغ تماماً"))
             }
 
+            ensureActive()
             onProgress(EngineProgress(40, "محاولة إعادة بناء جداول المراجع والمقطورات (XRef Rebuild)"))
 
             // Attempt loading with ScratchFile to reconstruct corrupted xref streams
@@ -721,6 +780,7 @@ class PdfBoxDocumentEngine(
                 )
             }
 
+            ensureActive()
             onProgress(EngineProgress(80, "إعادة كتابة وتوليد مستند PDF سليم"))
 
             FileOutputStream(tempOutputFile).use { out ->
@@ -747,6 +807,8 @@ class PdfBoxDocumentEngine(
                     diagnosisMessage = "تمت إعادة بناء جداول المراجع واسترداد $recoveredPages صفحة بنجاح"
                 )
             )
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (e: Exception) {
             AppResult.Error(AppError.Unknown(e.localizedMessage ?: "حدث خطأ أثناء محاولة إصلاح المستند", e))
         } finally {

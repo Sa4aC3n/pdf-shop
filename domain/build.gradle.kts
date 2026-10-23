@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.pdfcompress.CamScanner.domain"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26
@@ -20,6 +20,12 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    testOptions {
+        unitTests.all {
+            it.jvmArgs("-XX:+EnableDynamicAgentLoading")
+        }
+    }
 }
 
 dependencies {
@@ -30,5 +36,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
-    testImplementation("org.mockito:mockito-core:5.14.2")
+    testImplementation("org.mockito:mockito-subclass:5.14.2")
 }

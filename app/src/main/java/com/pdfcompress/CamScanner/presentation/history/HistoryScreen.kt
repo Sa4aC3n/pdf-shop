@@ -150,6 +150,7 @@ fun HistoryScreen(
 
 @Composable
 fun HistoryItemCard(item: HistoryItemUi) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val record = item.record
     val dateFormat = SimpleDateFormat("yyyy/MM/dd - hh:mm a", Locale.getDefault())
     val dateStr = dateFormat.format(Date(record.completedAt))
@@ -247,6 +248,40 @@ fun HistoryItemCard(item: HistoryItemUi) {
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                             )
+                        }
+                    } else if (record.outputDocumentUri != null) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(
+                                onClick = {
+                                    try {
+                                        val uri = android.net.Uri.parse(record.outputDocumentUri)
+                                        val mime = context.contentResolver.getType(uri) ?: "application/pdf"
+                                        val openIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                            setDataAndType(uri, mime)
+                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(android.content.Intent.createChooser(openIntent, "فتح الملف"))
+                                    } catch (_: Exception) {}
+                                }
+                            ) {
+                                Text("فتح")
+                            }
+                            TextButton(
+                                onClick = {
+                                    try {
+                                        val uri = android.net.Uri.parse(record.outputDocumentUri)
+                                        val mime = context.contentResolver.getType(uri) ?: "application/pdf"
+                                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                            type = mime
+                                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(android.content.Intent.createChooser(shareIntent, "مشاركة الملف"))
+                                    } catch (_: Exception) {}
+                                }
+                            ) {
+                                Text("مشاركة")
+                            }
                         }
                     }
                 }

@@ -207,12 +207,39 @@ fun ExtractTextScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Search Bar
+                val rawText = result?.text ?: ""
+                val query = uiState.searchQuery.trim()
+                val matchCount = remember(rawText, query) {
+                    if (query.isEmpty() || rawText.isEmpty()) 0
+                    else {
+                        var count = 0
+                        var startIdx = 0
+                        while (true) {
+                            val idx = rawText.indexOf(query, startIdx, ignoreCase = true)
+                            if (idx < 0) break
+                            count++
+                            startIdx = idx + query.length
+                        }
+                        count
+                    }
+                }
+
                 OutlinedTextField(
                     value = uiState.searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
                     placeholder = { Text("بحث في النص المستخرج…") },
                     leadingIcon = {
                         Icon(imageVector = Icons.Default.FindInPage, contentDescription = null)
+                    },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            Text(
+                                text = "$matchCount نتيجة",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (matchCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                        }
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -234,7 +261,7 @@ fun ExtractTextScreen(
                             .padding(16.dp)
                             .verticalScroll(rememberScrollState())
                     ) {
-                        val textToShow = result?.text ?: ""
+                        val textToShow = rawText
                         if (textToShow.isBlank()) {
                             Text(
                                 text = "لم يتم العثور على نصوص قابلة للقراءة في هذا الملف (قد يكون المستند ممسوحاً ضوئياً بالكامل كصور دون طبقة نصوص رقمية).",
@@ -242,9 +269,33 @@ fun ExtractTextScreen(
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         } else {
+                            val highlightBg = MaterialTheme.colorScheme.primaryContainer
+                            val highlightFg = MaterialTheme.colorScheme.onPrimaryContainer
+                            val annotatedText = remember(textToShow, query, highlightBg, highlightFg) {
+                                androidx.compose.ui.text.buildAnnotatedString {
+                                    append(textToShow)
+                                    if (query.isNotEmpty()) {
+                                        var startIndex = 0
+                                        while (startIndex < textToShow.length) {
+                                            val index = textToShow.indexOf(query, startIndex, ignoreCase = true)
+                                            if (index < 0) break
+                                            addStyle(
+                                                style = androidx.compose.ui.text.SpanStyle(
+                                                    background = highlightBg,
+                                                    color = highlightFg,
+                                                    fontWeight = FontWeight.Bold
+                                                ),
+                                                start = index,
+                                                end = index + query.length
+                                            )
+                                            startIndex = index + query.length
+                                        }
+                                    }
+                                }
+                            }
                             SelectionContainer {
                                 Text(
-                                    text = textToShow,
+                                    text = annotatedText,
                                     style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )

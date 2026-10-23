@@ -318,7 +318,12 @@ fun CameraCaptureView(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
+
+    LaunchedEffect(flashMode) {
+        imageCapture?.flashMode = flashMode
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // Camera Preview
@@ -341,7 +346,7 @@ fun CameraCaptureView(
                     try {
                         cameraProvider.unbindAll()
                         cameraProvider.bindToLifecycle(
-                            ctx as androidx.lifecycle.LifecycleOwner,
+                            lifecycleOwner,
                             CameraSelector.DEFAULT_BACK_CAMERA,
                             preview,
                             capture
@@ -495,14 +500,19 @@ fun PageReviewView(
 
     LaunchedEffect(activePage?.id, activePage?.rotationDegrees, activePage?.filter) {
         if (activePage != null && activePage.rawFile.exists()) {
-            var bmp = BitmapFactory.decodeFile(activePage.rawFile.absolutePath)
-            if (activePage.rotationDegrees % 360f != 0f) {
-                bmp = DocumentImageEnhancer.rotate(bmp, activePage.rotationDegrees)
+            val processed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                var bmp = BitmapFactory.decodeFile(activePage.rawFile.absolutePath)
+                if (bmp != null) {
+                    if (activePage.rotationDegrees % 360f != 0f) {
+                        bmp = DocumentImageEnhancer.rotate(bmp, activePage.rotationDegrees)
+                    }
+                    if (activePage.filter != ScanFilter.ORIGINAL) {
+                        bmp = DocumentImageEnhancer.applyFilter(bmp, activePage.filter)
+                    }
+                }
+                bmp
             }
-            if (activePage.filter != ScanFilter.ORIGINAL) {
-                bmp = DocumentImageEnhancer.applyFilter(bmp, activePage.filter)
-            }
-            previewBitmap = bmp
+            previewBitmap = processed
         }
     }
 

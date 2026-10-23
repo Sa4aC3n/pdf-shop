@@ -95,6 +95,17 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showBiometricPrompt() {
+        val biometricManager = androidx.biometric.BiometricManager.from(this)
+        val authenticators = androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK or
+            androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+
+        val canAuth = biometricManager.canAuthenticate(authenticators)
+        if (canAuth != androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS) {
+            isAuthenticated = true
+            authError = null
+            return
+        }
+
         val executor = ContextCompat.getMainExecutor(this)
         val biometricPrompt = BiometricPrompt(
             this,
@@ -108,7 +119,15 @@ class MainActivity : FragmentActivity() {
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
-                    authError = errString.toString()
+                    if (errorCode == BiometricPrompt.ERROR_NO_BIOMETRICS ||
+                        errorCode == BiometricPrompt.ERROR_HW_NOT_PRESENT ||
+                        errorCode == BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL
+                    ) {
+                        isAuthenticated = true
+                        authError = null
+                    } else {
+                        authError = errString.toString()
+                    }
                 }
 
                 override fun onAuthenticationFailed() {
@@ -120,8 +139,8 @@ class MainActivity : FragmentActivity() {
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle("قفل التطبيق")
-            .setSubtitle("يرجى التحقق من بصمتك للمتابعة")
-            .setNegativeButtonText("إلغاء")
+            .setSubtitle("يرجى التحقق من بصمتك أو رمز قفل الجهاز للمتابعة")
+            .setAllowedAuthenticators(authenticators)
             .build()
 
         biometricPrompt.authenticate(promptInfo)

@@ -7,20 +7,36 @@ plugins {
 
 android {
     namespace = "com.pdfcompress.CamScanner"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.pdfcompress.CamScanner"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        targetSdk = 36
+        versionCode = 2
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("${rootDir}/release.keystore")
+            storePassword = "android"
+            keyAlias = "releasekey"
+            keyPassword = "android"
+        }
+        create("debugConfig") {
+            storeFile = file("${rootDir}/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -28,6 +44,7 @@ android {
             )
         }
         debug {
+            signingConfig = signingConfigs.getByName("debugConfig")
             applicationIdSuffix = ".debug"
         }
     }
