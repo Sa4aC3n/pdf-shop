@@ -31,6 +31,9 @@ dependencies {
     // PDFBox Android
     implementation(libs.pdfbox.android)
 
+    // Tesseract 4 Android (Offline OCR)
+    implementation(libs.tesseract4android)
+
     // Room Database
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

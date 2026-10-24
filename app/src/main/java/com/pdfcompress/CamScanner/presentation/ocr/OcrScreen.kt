@@ -187,7 +187,7 @@ fun OcrScreen(
             if (uiState.sourceUri == null) {
                 EmptyStateView(
                     title = "اختر مستند PDF أو صورة للتعرف الضوئي OCR",
-                    description = "يقوم التطبيق بتحليل المستند واستخراج كامل النصوص الرقمية محلياً، مع إمكانية فتح الصورة مباشرة في عدسة Google للترجمة والتعرف الفوري بدون أي وسيط سحابي غير مرغوب.",
+                    description = "استخراج كامل النصوص العربية والإنجليزية محلياً بدون إنترنت 100% عبر Tesseract المدمج، مع إمكانية البحث الفوري والنسخ والحفظ كملف TXT.",
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.FindInPage
                 )
@@ -295,11 +295,7 @@ fun OcrScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = if (!uiState.isPdf) {
-                                        "الصور النقطية لا تحتوي على طبقة نصوص رقمية.\nيمكنك الضغط على زر «عدسة Google» بالأسفل للتعرف الفوري على نصوص الصورة."
-                                    } else {
-                                        "هذا المستند يتكون من صفحات ممسوحة كصور ولا يحتوي على طبقة نصوص رقمية قابلة للاستخراج.\nيمكنك استخدام «عدسة Google» بالأسفل للتعرف البصري الفوري."
-                                    },
+                                    text = "لم يتم العثور على نصوص قابلة للقراءة في هذا الملف.\nتأكد من وضوح وجودة الصورة أو صفحات المستند الممسوح.",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodyMedium,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center

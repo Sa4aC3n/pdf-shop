@@ -22,21 +22,13 @@ class OcrUseCase(
     ): AppResult<TextExtractionResult> {
         val startedAt = System.currentTimeMillis()
 
-        if (!isPdf) {
-            // For standalone raster images, we do not simulate fake OCR progress or record a fake success.
-            // Digital text extraction applies to PDFs; raster images can be sent to on-device Google Lens.
-            return AppResult.Success(
-                TextExtractionResult(
-                    text = "",
-                    characterCount = 0,
-                    wordCount = 0,
-                    pageCount = 1
-                )
-            )
+        val result = if (isPdf) {
+            onProgress(EngineProgress(15, "بدء قراءة وتحليل نصوص مستند الـ PDF…"))
+            pdfEngine.extractText(sourceUri, onProgress)
+        } else {
+            onProgress(EngineProgress(15, "بدء التعرف الضوئي الأوفلاين على نصوص الصورة (OCR)…"))
+            pdfEngine.recognizeImageText(sourceUri, onProgress)
         }
-
-        onProgress(EngineProgress(15, "بدء تحليل واستخراج طبقة النصوص من المستند…"))
-        val result = pdfEngine.extractText(sourceUri, onProgress)
 
         when (result) {
             is AppResult.Success -> {

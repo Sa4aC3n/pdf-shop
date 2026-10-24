@@ -61,6 +61,11 @@ interface PdfDocumentEngine {
         onProgress: (EngineProgress) -> Unit
     ): AppResult<TextExtractionResult>
 
+    suspend fun recognizeImageText(
+        imageUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<TextExtractionResult>
+
     suspend fun repair(
         sourceUri: Uri,
         destinationUri: Uri,

@@ -19,3 +19,9 @@
 # CameraX Proguard Rules
 -keep class androidx.camera.** { *; }
 -dontwarn androidx.camera.**
+
+# Tesseract 4 Android (Offline OCR)
+-keep class com.googlecode.tesseract.android.** { *; }
+-dontwarn com.googlecode.tesseract.android.**
+-keep class com.googlecode.leptonica.android.** { *; }
+-dontwarn com.googlecode.leptonica.android.**

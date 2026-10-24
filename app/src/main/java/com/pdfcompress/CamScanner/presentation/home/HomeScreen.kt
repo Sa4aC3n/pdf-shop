@@ -150,10 +150,10 @@ fun HomeScreen(
             ToolDefinition(
                 id = "ocr",
                 title = "التعرف الضوئي OCR",
-                description = "التعرف البصري الأوفلاين للصور قيد التجهيز؛ للـ PDF استخدم «استخراج النصوص»",
+                description = "استخراج النصوص من الصور والمستندات محلياً بدون إنترنت (عربي وإنجليزي)",
                 icon = Icons.Default.FindInPage,
                 isAvailable = true,
-                badgeText = "قريباً",
+                badgeText = "جاهز ومكتمل",
                 category = ToolCategory.SCAN_OCR,
                 accentLightColor = Color(0xFF2563EB),
                 accentDarkColor = Color(0xFF60A5FA),

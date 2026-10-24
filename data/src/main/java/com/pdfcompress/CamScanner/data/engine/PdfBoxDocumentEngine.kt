@@ -1,5 +1,7 @@
 package com.pdfcompress.CamScanner.data.engine
 
+import com.googlecode.tesseract.android.TessBaseAPI
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -743,16 +745,67 @@ class PdfBoxDocumentEngine(
             doc.close()
 
             ensureActive()
-            onProgress(EngineProgress(90, "معالجة وإحصاء الكلمات"))
+            val trimmedText = text.trim()
+            if (trimmedText.isNotBlank()) {
+                onProgress(EngineProgress(90, "معالجة وإحصاء الكلمات"))
+                val words = trimmedText.split("\\s+".toRegex()).filter { it.isNotBlank() }
+                onProgress(EngineProgress(100, "تم استخراج النصوص بنجاح"))
+                return@withContext AppResult.Success(
+                    TextExtractionResult(
+                        text = trimmedText,
+                        characterCount = trimmedText.length,
+                        wordCount = words.size,
+                        pageCount = totalPages
+                    )
+                )
+            }
 
-            val words = text.split("\\s+".toRegex()).filter { it.isNotBlank() }
+            // Scanned PDF fallback: render pages and run offline Tesseract OCR
+            onProgress(EngineProgress(45, "المستند ممسوح ضوئياً؛ بدء التعرف الضوئي (OCR) على الصفحات…"))
+            val datapath = ensureTessDataReady()
+            val ocrBuilder = StringBuilder()
 
-            onProgress(EngineProgress(100, "تم استخراج النصوص بنجاح"))
+            context.contentResolver.openFileDescriptor(sourceUri, "r")?.use { pfd ->
+                PdfRenderer(pfd).use { renderer ->
+                    val pagesCount = renderer.pageCount
+                    for (i in 0 until pagesCount) {
+                        ensureActive()
+                        val page = renderer.openPage(i)
+                        val scale = 2.0f
+                        val w = (page.width * scale).toInt().coerceAtLeast(1)
+                        val h = (page.height * scale).toInt().coerceAtLeast(1)
+                        val pageBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                        val canvas = Canvas(pageBmp)
+                        canvas.drawColor(Color.WHITE)
+                        page.render(pageBmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        page.close()
+
+                        val optBmp = optimizeBitmapForOcr(pageBmp)
+                        val pageText = runTesseractOnBitmap(optBmp, datapath)
+                        if (optBmp != pageBmp) {
+                            optBmp.recycle()
+                        }
+                        pageBmp.recycle()
+
+                        if (pageText.isNotBlank()) {
+                            if (ocrBuilder.isNotEmpty()) ocrBuilder.append("\n\n--- صفحة ${i + 1} ---\n\n")
+                            ocrBuilder.append(pageText)
+                        }
+
+                        val progressPct = 45 + ((i + 1) * 45 / pagesCount.coerceAtLeast(1))
+                        onProgress(EngineProgress(progressPct, "تم استخراج نصوص الصفحة ${i + 1} من $pagesCount"))
+                    }
+                }
+            }
+
+            val finalOcrText = ocrBuilder.toString().trim()
+            val ocrWords = finalOcrText.split("\\s+".toRegex()).filter { it.isNotBlank() }
+            onProgress(EngineProgress(100, "اكتمل استخراج نصوص المستند بالـ OCR بنجاح"))
             AppResult.Success(
                 TextExtractionResult(
-                    text = text,
-                    characterCount = text.length,
-                    wordCount = words.size,
+                    text = finalOcrText,
+                    characterCount = finalOcrText.length,
+                    wordCount = ocrWords.size,
                     pageCount = totalPages
                 )
             )
@@ -839,6 +892,107 @@ class PdfBoxDocumentEngine(
             tempFileManager.deleteFileSafely(tempInputFile)
             tempFileManager.deleteFileSafely(tempOutputFile)
         }
+    }
+
+    private fun ensureTessDataReady(): String {
+        val baseDir = context.filesDir
+        val tessDataDir = File(baseDir, "tessdata")
+        if (!tessDataDir.exists()) {
+            tessDataDir.mkdirs()
+        }
+        val models = listOf("ara.traineddata", "eng.traineddata")
+        for (model in models) {
+            val target = File(tessDataDir, model)
+            if (!target.exists() || target.length() == 0L) {
+                try {
+                    context.assets.open("tessdata/$model").use { input ->
+                        FileOutputStream(target).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+        return baseDir.absolutePath
+    }
+
+    private fun optimizeBitmapForOcr(bitmap: Bitmap): Bitmap {
+        val maxDim = maxOf(bitmap.width, bitmap.height)
+        return if (maxDim > 2048) {
+            val scale = 2048f / maxDim.toFloat()
+            val w = (bitmap.width * scale).toInt().coerceAtLeast(1)
+            val h = (bitmap.height * scale).toInt().coerceAtLeast(1)
+            Bitmap.createScaledBitmap(bitmap, w, h, true)
+        } else {
+            bitmap
+        }
+    }
+
+    private fun runTesseractOnBitmap(bitmap: Bitmap, datapath: String): String {
+        val tess = TessBaseAPI()
+        return try {
+            val inited = try {
+                tess.init(datapath, "ara+eng")
+            } catch (_: Exception) {
+                false
+            }
+            val ready = if (inited) true else try { tess.init(datapath, "eng") } catch (_: Exception) { false }
+            if (!ready) return ""
+            tess.setImage(bitmap)
+            val text = tess.utF8Text ?: ""
+            tess.clear()
+            text.trim()
+        } catch (_: Exception) {
+            ""
+        } finally {
+            try { tess.recycle() } catch (_: Exception) {}
+        }
+    }
+
+    override suspend fun recognizeImageText(
+        imageUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<TextExtractionResult> = withContext(dispatchers.io) {
+        onProgress(EngineProgress(10, "تحضير نماذج التعرف الضوئي الأوفلاين (Tesseract)…"))
+        val datapath = ensureTessDataReady()
+
+        ensureActive()
+        onProgress(EngineProgress(30, "قراءة ومعالجة أبعاد الصورة…"))
+        val originalBmp = try {
+            context.contentResolver.openInputStream(imageUri)?.use { stream ->
+                BitmapFactory.decodeStream(stream)
+            }
+        } catch (e: Exception) {
+            null
+        }
+
+        if (originalBmp == null) {
+            return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر قراءة أو فك تشفير ملف الصورة المختار"))
+        }
+
+        ensureActive()
+        onProgress(EngineProgress(50, "معالجة واستخراج النصوص العربية والإنجليزية (OCR)…"))
+        val optimized = optimizeBitmapForOcr(originalBmp)
+        val recognizedText = runTesseractOnBitmap(optimized, datapath)
+
+        if (optimized != originalBmp) {
+            optimized.recycle()
+        }
+        originalBmp.recycle()
+
+        ensureActive()
+        onProgress(EngineProgress(90, "إحصاء الكلمات والرموز المستخرجة…"))
+        val words = recognizedText.split("\\s+".toRegex()).filter { it.isNotBlank() }
+
+        onProgress(EngineProgress(100, "اكتمل التعرف الضوئي على الصورة بنجاح"))
+        AppResult.Success(
+            TextExtractionResult(
+                text = recognizedText,
+                characterCount = recognizedText.length,
+                wordCount = words.size,
+                pageCount = 1
+            )
+        )
     }
 
     override suspend fun getPageCount(sourceUri: Uri): Int = withContext(dispatchers.io) {
