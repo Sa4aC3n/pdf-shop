@@ -209,6 +209,7 @@ class ScannerViewModel(
                             bitmap.compress(Bitmap.CompressFormat.JPEG, 92, fos)
                             fos.flush()
                         }
+                        bitmap.recycle()
                         processedUris.add(Uri.fromFile(outFile))
                     }
                 }

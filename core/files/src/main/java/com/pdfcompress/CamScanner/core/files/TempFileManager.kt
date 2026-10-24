@@ -44,7 +44,7 @@ class TempFileManager(private val context: Context) {
     fun copyFileToUri(sourceFile: File, destinationUri: Uri): Boolean {
         return try {
             if (!sourceFile.exists() || sourceFile.length() == 0L) return false
-            val outputStream = context.contentResolver.openOutputStream(destinationUri, "wt")
+            val outputStream = try { context.contentResolver.openOutputStream(destinationUri, "wt") } catch (_: Exception) { null } ?: try { context.contentResolver.openOutputStream(destinationUri, "w") } catch (_: Exception) { null }
                 ?: context.contentResolver.openOutputStream(destinationUri)
                 ?: return false
             var bytesCopied = 0L

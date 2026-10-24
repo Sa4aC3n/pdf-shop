@@ -47,6 +47,13 @@ class MainActivity : FragmentActivity() {
     private var isAuthenticated by mutableStateOf(false)
     private var authError by mutableStateOf<String?>(null)
 
+    override fun onStop() {
+        super.onStop()
+        // Re-lock the application session when it leaves the foreground
+        isAuthenticated = false
+        authError = null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

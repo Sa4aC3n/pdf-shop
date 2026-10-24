@@ -832,6 +832,8 @@ class PdfBoxDocumentEngine(
     }
 
     override suspend fun getPageCount(sourceUri: Uri): Int = withContext(dispatchers.io) {
+        val quickCount = try { context.contentResolver.openFileDescriptor(sourceUri, "r")?.use { pfd -> PdfRenderer(pfd).use { it.pageCount } } } catch (_: Exception) { null }
+        if (quickCount != null && quickCount > 0) return@withContext quickCount
         var tempFile: File? = null
         try {
             tempFile = tempFileManager.createTempPdfFile("count_check")
