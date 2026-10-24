@@ -19,24 +19,33 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val releaseKeystore = file("${rootDir}/release.keystore")
+    val debugKeystore = file("${rootDir}/debug.keystore")
+
     signingConfigs {
-        create("release") {
-            storeFile = file("${rootDir}/release.keystore")
-            storePassword = "android"
-            keyAlias = "releasekey"
-            keyPassword = "android"
+        if (releaseKeystore.exists()) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
+                keyAlias = System.getenv("KEY_ALIAS") ?: "releasekey"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+            }
         }
-        create("debugConfig") {
-            storeFile = file("${rootDir}/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+        if (debugKeystore.exists()) {
+            create("debugConfig") {
+                storeFile = debugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            if (releaseKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -44,7 +53,9 @@ android {
             )
         }
         debug {
-            signingConfig = signingConfigs.getByName("debugConfig")
+            if (debugKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("debugConfig")
+            }
             applicationIdSuffix = ".debug"
         }
     }
