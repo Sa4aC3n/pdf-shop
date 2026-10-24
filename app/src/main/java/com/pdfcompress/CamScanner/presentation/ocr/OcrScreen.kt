@@ -295,9 +295,14 @@ fun OcrScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = "لم يتم العثور على طبقة نصوص رقمية في الملف المختار.\nيمكنك استخدام زر «عدسة Google» بالأسفل للتعرف البصري المباشر على الأوراق الممسوحة.",
+                                    text = if (!uiState.isPdf) {
+                                        "الصور النقطية لا تحتوي على طبقة نصوص رقمية.\nيمكنك الضغط على زر «عدسة Google» بالأسفل للتعرف الفوري على نصوص الصورة."
+                                    } else {
+                                        "هذا المستند يتكون من صفحات ممسوحة كصور ولا يحتوي على طبقة نصوص رقمية قابلة للاستخراج.\nيمكنك استخدام «عدسة Google» بالأسفل للتعرف البصري الفوري."
+                                    },
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                         } else {

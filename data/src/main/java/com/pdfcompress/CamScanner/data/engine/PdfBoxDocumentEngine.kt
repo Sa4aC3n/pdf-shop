@@ -385,7 +385,11 @@ class PdfBoxDocumentEngine(
                                         originalBmp
                                     }
 
-                                    val newImageXObject = JPEGFactory.createFromImage(doc, scaledBmp, level.quality)
+                                    val newImageXObject = if (scaledBmp.hasAlpha()) {
+                                        LosslessFactory.createFromImage(doc, scaledBmp)
+                                    } else {
+                                        JPEGFactory.createFromImage(doc, scaledBmp, level.quality)
+                                    }
                                     if (scaledBmp != originalBmp) {
                                         scaledBmp.recycle()
                                     }
@@ -519,8 +523,8 @@ class PdfBoxDocumentEngine(
             for ((index, page) in doc.pages.withIndex()) {
                 ensureActive()
                 val mediaBox = page.mediaBox ?: page.cropBox ?: PDRectangle.A4
-                val centerX = mediaBox.width / 2f
-                val centerY = mediaBox.height / 2f
+                val centerX = mediaBox.lowerLeftX + mediaBox.width / 2f
+                val centerY = mediaBox.lowerLeftY + mediaBox.height / 2f
 
                 PDPageContentStream(
                     doc,
@@ -529,6 +533,12 @@ class PdfBoxDocumentEngine(
                     true,
                     true
                 ).use { contentStream ->
+                    val pageRotation = page.rotation
+                    if (pageRotation != 0) {
+                        contentStream.transform(
+                            Matrix.getRotateInstance(Math.toRadians(-pageRotation.toDouble()), centerX, centerY)
+                        )
+                    }
                     val graphicsState = PDExtendedGraphicsState().apply {
                         nonStrokingAlphaConstant = options.opacity.coerceIn(0.05f, 0.95f)
                         strokingAlphaConstant = options.opacity.coerceIn(0.05f, 0.95f)
