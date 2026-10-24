@@ -1,8 +1,9 @@
-﻿package com.pdfcompress.CamScanner.presentation.settings
+package com.pdfcompress.CamScanner.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.pdfcompress.CamScanner.domain.model.AppColorTheme
 import com.pdfcompress.CamScanner.domain.model.AppLanguage
 import com.pdfcompress.CamScanner.domain.model.AppTheme
 import com.pdfcompress.CamScanner.domain.model.UserSettings
@@ -28,6 +29,12 @@ class SettingsViewModel(
     fun setTheme(theme: AppTheme) {
         viewModelScope.launch {
             updateSettingsUseCase.setTheme(theme)
+        }
+    }
+
+    fun setColorTheme(colorTheme: AppColorTheme) {
+        viewModelScope.launch {
+            updateSettingsUseCase.setColorTheme(colorTheme)
         }
     }
 

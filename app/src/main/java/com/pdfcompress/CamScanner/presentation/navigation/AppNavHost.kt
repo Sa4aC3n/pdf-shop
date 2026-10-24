@@ -1,5 +1,6 @@
 package com.pdfcompress.CamScanner.presentation.navigation
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
@@ -8,15 +9,22 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -25,6 +33,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.pdfcompress.CamScanner.AppContainer
+import com.pdfcompress.CamScanner.domain.model.UserSettings
 import com.pdfcompress.CamScanner.presentation.compress.CompressScreen
 import com.pdfcompress.CamScanner.presentation.compress.CompressViewModel
 import com.pdfcompress.CamScanner.presentation.extracttext.ExtractTextScreen
@@ -50,6 +59,7 @@ import com.pdfcompress.CamScanner.presentation.split.SplitScreen
 import com.pdfcompress.CamScanner.presentation.split.SplitViewModel
 import com.pdfcompress.CamScanner.presentation.watermark.WatermarkScreen
 import com.pdfcompress.CamScanner.presentation.watermark.WatermarkViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavHost(
@@ -59,6 +69,8 @@ fun AppNavHost(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val settings by container.settingsRepository.settings.collectAsState(initial = UserSettings())
+    val coroutineScope = rememberCoroutineScope()
 
     val bottomNavRoutes = listOf(
         Screen.Home.route,
@@ -68,69 +80,104 @@ fun AppNavHost(
 
     val showBottomBar = currentRoute in bottomNavRoutes
 
+    val navItemColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = MaterialTheme.colorScheme.primary,
+        selectedTextColor = MaterialTheme.colorScheme.primary,
+        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
+        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Home.route,
-                        onClick = {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (currentRoute == Screen.Home.route) Icons.Filled.Home else Icons.Outlined.Home,
-                                contentDescription = "الرئيسية"
-                            )
-                        },
-                        label = { Text("الرئيسية") }
+                Column {
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                     )
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 0.dp
+                    ) {
+                        NavigationBarItem(
+                            selected = currentRoute == Screen.Home.route,
+                            onClick = {
+                                navController.navigate(Screen.Home.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (currentRoute == Screen.Home.route) Icons.Filled.Home else Icons.Outlined.Home,
+                                    contentDescription = "الرئيسية"
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "الرئيسية",
+                                    fontWeight = if (currentRoute == Screen.Home.route) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = navItemColors
+                        )
 
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.History.route,
-                        onClick = {
-                            navController.navigate(Screen.History.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                        NavigationBarItem(
+                            selected = currentRoute == Screen.History.route,
+                            onClick = {
+                                navController.navigate(Screen.History.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (currentRoute == Screen.History.route) Icons.Filled.History else Icons.Outlined.History,
-                                contentDescription = "السجل"
-                            )
-                        },
-                        label = { Text("السجل") }
-                    )
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (currentRoute == Screen.History.route) Icons.Filled.History else Icons.Outlined.History,
+                                    contentDescription = "السجل"
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "السجل",
+                                    fontWeight = if (currentRoute == Screen.History.route) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = navItemColors
+                        )
 
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Settings.route,
-                        onClick = {
-                            navController.navigate(Screen.Settings.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                        NavigationBarItem(
+                            selected = currentRoute == Screen.Settings.route,
+                            onClick = {
+                                navController.navigate(Screen.Settings.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (currentRoute == Screen.Settings.route) Icons.Filled.Settings else Icons.Outlined.Settings,
-                                contentDescription = "الإعدادات"
-                            )
-                        },
-                        label = { Text("الإعدادات") }
-                    )
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (currentRoute == Screen.Settings.route) Icons.Filled.Settings else Icons.Outlined.Settings,
+                                    contentDescription = "الإعدادات"
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "الإعدادات",
+                                    fontWeight = if (currentRoute == Screen.Settings.route) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = navItemColors
+                        )
+                    }
                 }
             }
         },
@@ -143,6 +190,17 @@ fun AppNavHost(
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
+                    currentSettings = settings,
+                    onSelectColorTheme = { colorTheme ->
+                        coroutineScope.launch {
+                            container.updateSettingsUseCase.setColorTheme(colorTheme)
+                        }
+                    },
+                    onSelectThemeMode = { themeMode ->
+                        coroutineScope.launch {
+                            container.updateSettingsUseCase.setTheme(themeMode)
+                        }
+                    },
                     onNavigateToMerge = { navController.navigate(Screen.Merge.route) },
                     onNavigateToImagesToPdf = { navController.navigate(Screen.ImagesToPdf.route) },
                     onNavigateToSplit = { navController.navigate(Screen.Split.route) },

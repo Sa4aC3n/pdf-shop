@@ -8,6 +8,8 @@ import com.pdfcompress.CamScanner.core.common.result.AppResult
 import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.domain.model.RepairReport
 import com.pdfcompress.CamScanner.domain.usecase.RepairPdfUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +25,8 @@ data class RepairUiState(
     val progressMessage: String? = null,
     val errorMessage: String? = null,
     val repairReport: RepairReport? = null,
-    val outputName: String? = null
+    val outputName: String? = null,
+    val outputUri: Uri? = null
 )
 
 class RepairViewModel(
@@ -33,6 +36,8 @@ class RepairViewModel(
 
     private val _uiState = MutableStateFlow(RepairUiState())
     val uiState: StateFlow<RepairUiState> = _uiState.asStateFlow()
+    private var processingJob: Job? = null
+    private var lastDestinationUri: Uri? = null
 
     fun setSourceFile(uri: Uri) {
         safHelper.takePersistableUriPermission(uri)
@@ -56,58 +61,94 @@ class RepairViewModel(
         val srcName = currentState.sourceName ?: "damaged.pdf"
         if (currentState.isProcessing) return
 
+        lastDestinationUri = destinationUri
         val destName = safHelper.getDisplayName(destinationUri)
 
-        viewModelScope.launch {
+        processingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isProcessing = true,
                     progressPercent = 0,
                     progressMessage = "بدء فحص البايتات التالفة…",
                     errorMessage = null,
-                    repairReport = null
+                    repairReport = null,
+                    outputUri = null
                 )
             }
 
-            val result = useCase(
-                sourceUri = srcUri,
-                sourceName = srcName,
-                destinationUri = destinationUri,
-                destinationName = destName,
-                onProgress = { progress ->
-                    _uiState.update {
-                        it.copy(
-                            progressPercent = progress.percentage,
-                            progressMessage = progress.stage
-                        )
+            try {
+                val result = useCase(
+                    sourceUri = srcUri,
+                    sourceName = srcName,
+                    destinationUri = destinationUri,
+                    destinationName = destName,
+                    onProgress = { progress ->
+                        _uiState.update {
+                            it.copy(
+                                progressPercent = progress.percentage,
+                                progressMessage = progress.stage
+                            )
+                        }
                     }
-                }
-            )
+                )
 
-            when (result) {
-                is AppResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            repairReport = result.data,
-                            outputName = destName
-                        )
+                when (result) {
+                    is AppResult.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                repairReport = result.data,
+                                outputName = destName,
+                                outputUri = destinationUri
+                            )
+                        }
                     }
-                }
-                is AppResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            errorMessage = result.error.message
-                        )
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                errorMessage = result.error.message
+                            )
+                        }
                     }
+                    is AppResult.Progress -> {}
                 }
-                is AppResult.Progress -> {}
+            } catch (e: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        progressPercent = null,
+                        progressMessage = null,
+                        errorMessage = "تم إلغاء عملية الإصلاح بناءً على طلبك."
+                    )
+                }
             }
+        }
+    }
+
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+        _uiState.update {
+            it.copy(
+                isProcessing = false,
+                progressPercent = null,
+                progressMessage = null,
+                errorMessage = "تم إلغاء عملية الإصلاح."
+            )
+        }
+    }
+
+    fun retryLastRepair() {
+        val dest = lastDestinationUri
+        if (dest != null && _uiState.value.sourceUri != null) {
+            startRepair(dest)
+        } else {
+            dismissError()
         }
     }
 

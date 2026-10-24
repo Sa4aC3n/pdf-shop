@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.core.files
+package com.pdfcompress.CamScanner.core.files
 
 import android.content.Context
 import android.net.Uri
@@ -31,9 +31,10 @@ class TempFileManager(private val context: Context) {
             inputStream.use { input ->
                 FileOutputStream(tempFile).use { output ->
                     input.copyTo(output)
+                    output.flush()
                 }
             }
-            tempFile.exists() && tempFile.length() > 0
+            tempFile.exists() && tempFile.length() > 0L
         } catch (_: Exception) {
             deleteFileSafely(tempFile)
             false
@@ -42,14 +43,26 @@ class TempFileManager(private val context: Context) {
 
     fun copyFileToUri(sourceFile: File, destinationUri: Uri): Boolean {
         return try {
+            if (!sourceFile.exists() || sourceFile.length() == 0L) return false
             val outputStream = context.contentResolver.openOutputStream(destinationUri, "wt")
-            if (outputStream == null) return false
+                ?: context.contentResolver.openOutputStream(destinationUri)
+                ?: return false
+            var bytesCopied = 0L
             outputStream.use { output ->
                 sourceFile.inputStream().use { input ->
-                    input.copyTo(output)
+                    bytesCopied = input.copyTo(output)
+                    output.flush()
                 }
             }
-            true
+            if (bytesCopied <= 0L) return false
+            val verifiedReadable = try {
+                context.contentResolver.openInputStream(destinationUri)?.use { stream ->
+                    stream.read() != -1
+                } ?: true
+            } catch (_: Exception) {
+                true
+            }
+            verifiedReadable
         } catch (_: Exception) {
             false
         }

@@ -53,6 +53,9 @@ import androidx.compose.ui.unit.sp
 import com.pdfcompress.CamScanner.core.ui.components.EmptyStateView
 import com.pdfcompress.CamScanner.core.ui.components.ErrorBanner
 import com.pdfcompress.CamScanner.core.ui.components.LoadingDialog
+import com.pdfcompress.CamScanner.core.ui.components.ModernBottomBarContainer
+import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
+import com.pdfcompress.CamScanner.core.ui.components.ModernSoftButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,37 +97,28 @@ fun WatermarkScreen(
             )
         },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(16.dp)
-            ) {
+            ModernBottomBarContainer {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedButton(
+                    ModernSoftButton(
+                        text = if (uiState.sourceUri == null) "اختيار مستند" else "تغيير المستند",
+                        icon = Icons.Default.FileOpen,
                         onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !uiState.isProcessing
-                    ) {
-                        Icon(imageVector = Icons.Default.FileOpen, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (uiState.sourceUri == null) "اختيار مستند" else "تغيير المستند")
-                    }
+                        enabled = !uiState.isProcessing,
+                        modifier = Modifier.weight(1f)
+                    )
 
-                    Button(
+                    ModernGradientButton(
+                        text = "تطبيق وحفظ",
+                        icon = Icons.Default.WaterDamage,
                         onClick = {
                             savePickerLauncher.launch("watermarked_${System.currentTimeMillis()}.pdf")
                         },
-                        modifier = Modifier.weight(1f),
-                        enabled = uiState.sourceUri != null && uiState.watermarkText.isNotBlank() && !uiState.isProcessing
-                    ) {
-                        Icon(imageVector = Icons.Default.WaterDamage, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("تطبيق وحفظ")
-                    }
+                        enabled = uiState.sourceUri != null && uiState.watermarkText.isNotBlank() && !uiState.isProcessing,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         },
@@ -141,7 +135,10 @@ fun WatermarkScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 ErrorBanner(
                     errorMessage = error,
-                    onRetry = { viewModel.dismissError() }
+                    onRetry = if (uiState.lastDestinationUri != null && uiState.sourceUri != null) {
+                        { viewModel.retryLastWatermarking() }
+                    } else null,
+                    onDismiss = { viewModel.dismissError() }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -304,7 +301,8 @@ fun WatermarkScreen(
         LoadingDialog(
             title = "جارٍ تطبيق العلامة المائية محلياً…",
             message = uiState.progressMessage,
-            progressPercent = uiState.progressPercent
+            progressPercent = uiState.progressPercent,
+            onCancel = { viewModel.cancelProcessing() }
         )
     }
 
@@ -342,17 +340,23 @@ fun WatermarkScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    uiState.outputUri?.let { outUri ->
+                        Spacer(modifier = Modifier.height(12.dp))
+                        com.pdfcompress.CamScanner.core.ui.components.OutputFileActionsRow(
+                            outputUri = outUri
+                        )
+                    }
                 }
             },
             confirmButton = {
-                Button(
+                ModernGradientButton(
+                    text = "العودة للرئيسية",
                     onClick = {
                         viewModel.dismissSuccess()
                         onNavigateBack()
-                    }
-                ) {
-                    Text("العودة للرئيسية")
-                }
+                    },
+                    height = 44.dp
+                )
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissSuccess() }) {

@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.presentation.imagestopdf
+package com.pdfcompress.CamScanner.presentation.imagestopdf
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.pdfcompress.CamScanner.core.common.result.AppResult
 import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.domain.usecase.ImagesToPdfUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +33,7 @@ data class ImagesToPdfUiState(
     val progressPercent: Int? = null,
     val progressMessage: String? = null,
     val errorMessage: String? = null,
+    val lastDestinationUri: Uri? = null,
     val successInfo: ImagesToPdfSuccessInfo? = null
 )
 
@@ -41,6 +44,7 @@ class ImagesToPdfViewModel(
 
     private val _uiState = MutableStateFlow(ImagesToPdfUiState())
     val uiState: StateFlow<ImagesToPdfUiState> = _uiState.asStateFlow()
+    private var processingJob: Job? = null
 
     fun addImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
@@ -100,62 +104,88 @@ class ImagesToPdfViewModel(
 
         val destName = safHelper.getDisplayName(destinationUri)
 
-        viewModelScope.launch {
+        processingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isProcessing = true,
                     progressPercent = 0,
                     progressMessage = "بدء معالجة الصور…",
                     errorMessage = null,
+                    lastDestinationUri = destinationUri,
                     successInfo = null
                 )
             }
 
-            val imageUris = currentState.selectedImages.map { it.uri }
-            val imageNames = currentState.selectedImages.map { it.displayName }
+            try {
+                val imageUris = currentState.selectedImages.map { it.uri }
+                val imageNames = currentState.selectedImages.map { it.displayName }
 
-            val result = imagesToPdfUseCase(
-                imageUris = imageUris,
-                imageNames = imageNames,
-                destinationUri = destinationUri,
-                destinationName = destName,
-                onProgress = { progress ->
-                    _uiState.update {
-                        it.copy(
-                            progressPercent = progress.percentage,
-                            progressMessage = progress.stage
-                        )
-                    }
-                }
-            )
-
-            when (result) {
-                is AppResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            successInfo = ImagesToPdfSuccessInfo(
-                                outputName = destName,
-                                outputSizeBytes = result.data,
-                                outputUri = destinationUri
+                val result = imagesToPdfUseCase(
+                    imageUris = imageUris,
+                    imageNames = imageNames,
+                    destinationUri = destinationUri,
+                    destinationName = destName,
+                    onProgress = { progress ->
+                        _uiState.update {
+                            it.copy(
+                                progressPercent = progress.percentage,
+                                progressMessage = progress.stage
                             )
-                        )
+                        }
                     }
-                }
-                is AppResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            errorMessage = result.error.message
-                        )
+                )
+
+                when (result) {
+                    is AppResult.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                successInfo = ImagesToPdfSuccessInfo(
+                                    outputName = destName,
+                                    outputSizeBytes = result.data,
+                                    outputUri = destinationUri
+                                )
+                            )
+                        }
                     }
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                errorMessage = result.error.message
+                            )
+                        }
+                    }
+                    is AppResult.Progress -> {}
                 }
-                is AppResult.Progress -> {}
+            } catch (_: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        progressPercent = null,
+                        progressMessage = null,
+                        errorMessage = "تم إلغاء عملية تحويل الصور بناءً على طلبك"
+                    )
+                }
             }
+        }
+    }
+
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+    }
+
+    fun retryLastConversion() {
+        val dest = _uiState.value.lastDestinationUri
+        if (dest != null) {
+            startConversion(dest)
+        } else {
+            dismissError()
         }
     }
 

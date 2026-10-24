@@ -8,6 +8,8 @@ import com.pdfcompress.CamScanner.core.common.result.AppResult
 import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.domain.model.WatermarkOptions
 import com.pdfcompress.CamScanner.domain.usecase.AddWatermarkUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,8 +27,10 @@ data class WatermarkUiState(
     val progressPercent: Int? = null,
     val progressMessage: String? = null,
     val errorMessage: String? = null,
+    val lastDestinationUri: Uri? = null,
     val successOutputName: String? = null,
-    val successSizeBytes: Long = 0
+    val successSizeBytes: Long = 0,
+    val outputUri: Uri? = null
 )
 
 class WatermarkViewModel(
@@ -36,6 +40,7 @@ class WatermarkViewModel(
 
     private val _uiState = MutableStateFlow(WatermarkUiState())
     val uiState: StateFlow<WatermarkUiState> = _uiState.asStateFlow()
+    private var processingJob: Job? = null
 
     fun setSourceFile(uri: Uri) {
         safHelper.takePersistableUriPermission(uri)
@@ -45,7 +50,8 @@ class WatermarkViewModel(
                 sourceUri = uri,
                 sourceName = name,
                 errorMessage = null,
-                successOutputName = null
+                successOutputName = null,
+                outputUri = null
             )
         }
     }
@@ -80,62 +86,90 @@ class WatermarkViewModel(
             rotationDegrees = currentState.rotation
         )
 
-        viewModelScope.launch {
+        processingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isProcessing = true,
                     progressPercent = 0,
                     progressMessage = "بدء إضافة العلامة المائية محلياً…",
                     errorMessage = null,
-                    successOutputName = null
+                    lastDestinationUri = destinationUri,
+                    successOutputName = null,
+                    outputUri = null
                 )
             }
 
-            val result = watermarkUseCase(
-                sourceUri = srcUri,
-                sourceName = srcName,
-                options = options,
-                destinationUri = destinationUri,
-                destinationName = destName,
-                onProgress = { progress ->
-                    _uiState.update {
-                        it.copy(
-                            progressPercent = progress.percentage,
-                            progressMessage = progress.stage
-                        )
+            try {
+                val result = watermarkUseCase(
+                    sourceUri = srcUri,
+                    sourceName = srcName,
+                    options = options,
+                    destinationUri = destinationUri,
+                    destinationName = destName,
+                    onProgress = { progress ->
+                        _uiState.update {
+                            it.copy(
+                                progressPercent = progress.percentage,
+                                progressMessage = progress.stage
+                            )
+                        }
                     }
-                }
-            )
+                )
 
-            when (result) {
-                is AppResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            successOutputName = destName,
-                            successSizeBytes = result.data
-                        )
+                when (result) {
+                    is AppResult.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                successOutputName = destName,
+                                successSizeBytes = result.data,
+                                outputUri = destinationUri
+                            )
+                        }
                     }
-                }
-                is AppResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            errorMessage = result.error.message
-                        )
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                errorMessage = result.error.message
+                            )
+                        }
                     }
+                    is AppResult.Progress -> {}
                 }
-                is AppResult.Progress -> {}
+            } catch (_: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        progressPercent = null,
+                        progressMessage = null,
+                        errorMessage = "تم إلغاء إضافة العلامة المائية بناءً على طلبك"
+                    )
+                }
             }
         }
     }
 
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+    }
+
+    fun retryLastWatermarking() {
+        val dest = _uiState.value.lastDestinationUri
+        if (dest != null) {
+            startWatermarking(dest)
+        } else {
+            dismissError()
+        }
+    }
+
     fun dismissSuccess() {
-        _uiState.update { it.copy(successOutputName = null) }
+        _uiState.update { it.copy(successOutputName = null, outputUri = null) }
     }
 
     fun dismissError() {

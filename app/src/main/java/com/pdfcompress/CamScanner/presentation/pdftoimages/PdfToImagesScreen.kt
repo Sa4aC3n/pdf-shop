@@ -52,6 +52,10 @@ import androidx.compose.ui.unit.dp
 import com.pdfcompress.CamScanner.core.ui.components.EmptyStateView
 import com.pdfcompress.CamScanner.core.ui.components.ErrorBanner
 import com.pdfcompress.CamScanner.core.ui.components.LoadingDialog
+import com.pdfcompress.CamScanner.core.ui.components.ModernBottomBarContainer
+import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
+import com.pdfcompress.CamScanner.core.ui.components.ModernSoftButton
+import com.pdfcompress.CamScanner.core.ui.components.OutputFileActionsRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,27 +99,22 @@ fun PdfToImagesScreen(
             )
         },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(16.dp)
-            ) {
+            ModernBottomBarContainer {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedButton(
+                    ModernSoftButton(
+                        text = if (uiState.sourceUri == null) "اختيار مستند" else "تغيير المستند",
+                        icon = Icons.Default.FileOpen,
                         onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !uiState.isProcessing
-                    ) {
-                        Icon(imageVector = Icons.Default.FileOpen, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (uiState.sourceUri == null) "اختيار مستند" else "تغيير المستند")
-                    }
+                        enabled = !uiState.isProcessing,
+                        modifier = Modifier.weight(1f)
+                    )
 
-                    Button(
+                    ModernGradientButton(
+                        text = "تصدير (${uiState.selectedPages.size})",
+                        icon = Icons.Default.Image,
                         onClick = {
                             val defaultName = if (uiState.selectedPages.size == 1) {
                                 "page_${uiState.selectedPages.first()}_${System.currentTimeMillis()}.jpg"
@@ -124,13 +123,9 @@ fun PdfToImagesScreen(
                             }
                             savePickerLauncher.launch(defaultName)
                         },
-                        modifier = Modifier.weight(1f),
-                        enabled = uiState.selectedPages.isNotEmpty() && !uiState.isProcessing
-                    ) {
-                        Icon(imageVector = Icons.Default.Image, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("تصدير (${uiState.selectedPages.size})")
-                    }
+                        enabled = uiState.selectedPages.isNotEmpty() && !uiState.isProcessing,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         },
@@ -146,7 +141,8 @@ fun PdfToImagesScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 ErrorBanner(
                     errorMessage = error,
-                    onRetry = { viewModel.dismissError() }
+                    onRetry = { viewModel.retryLastExport() },
+                    onDismiss = { viewModel.dismissError() }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -271,7 +267,8 @@ fun PdfToImagesScreen(
         LoadingDialog(
             title = "جارٍ تصدير الصفحات كصور محلياً…",
             message = uiState.progressMessage,
-            progressPercent = uiState.progressPercent
+            progressPercent = uiState.progressPercent,
+            onCancel = { viewModel.cancelProcessing() }
         )
     }
 
@@ -316,17 +313,21 @@ fun PdfToImagesScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    OutputFileActionsRow(
+                        outputUri = uiState.outputUri,
+                        defaultMimeType = if (result.isZipArchive) "application/zip" else "image/jpeg"
+                    )
                 }
             },
             confirmButton = {
-                Button(
+                ModernGradientButton(
+                    text = "العودة للرئيسية",
                     onClick = {
                         viewModel.dismissSuccess()
                         onNavigateBack()
-                    }
-                ) {
-                    Text("العودة للرئيسية")
-                }
+                    },
+                    height = 44.dp
+                )
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissSuccess() }) {

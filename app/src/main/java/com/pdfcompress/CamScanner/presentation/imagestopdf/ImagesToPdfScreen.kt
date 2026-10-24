@@ -52,6 +52,9 @@ import androidx.compose.ui.unit.dp
 import com.pdfcompress.CamScanner.core.ui.components.EmptyStateView
 import com.pdfcompress.CamScanner.core.ui.components.ErrorBanner
 import com.pdfcompress.CamScanner.core.ui.components.LoadingDialog
+import com.pdfcompress.CamScanner.core.ui.components.ModernBottomBarContainer
+import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
+import com.pdfcompress.CamScanner.core.ui.components.ModernSoftButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,37 +96,28 @@ fun ImagesToPdfScreen(
             )
         },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(16.dp)
-            ) {
+            ModernBottomBarContainer {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedButton(
+                    ModernSoftButton(
+                        text = "إضافة صور",
+                        icon = Icons.Default.AddPhotoAlternate,
                         onClick = { imagePickerLauncher.launch("image/*") },
-                        modifier = Modifier.weight(1f),
-                        enabled = !uiState.isProcessing
-                    ) {
-                        Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("إضافة صور")
-                    }
+                        enabled = !uiState.isProcessing,
+                        modifier = Modifier.weight(1f)
+                    )
 
-                    Button(
+                    ModernGradientButton(
+                        text = "إنشاء PDF",
+                        icon = Icons.Default.PictureAsPdf,
                         onClick = {
                             savePickerLauncher.launch("images_doc_${System.currentTimeMillis()}.pdf")
                         },
-                        modifier = Modifier.weight(1f),
-                        enabled = uiState.selectedImages.isNotEmpty() && !uiState.isProcessing
-                    ) {
-                        Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("إنشاء PDF")
-                    }
+                        enabled = uiState.selectedImages.isNotEmpty() && !uiState.isProcessing,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         },
@@ -139,7 +133,10 @@ fun ImagesToPdfScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 ErrorBanner(
                     errorMessage = error,
-                    onRetry = { viewModel.dismissError() }
+                    onRetry = if (uiState.lastDestinationUri != null && uiState.selectedImages.isNotEmpty()) {
+                        { viewModel.retryLastConversion() }
+                    } else null,
+                    onDismiss = { viewModel.dismissError() }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -184,7 +181,8 @@ fun ImagesToPdfScreen(
         LoadingDialog(
             title = "جارٍ إنشاء مستند الـ PDF محلياً…",
             message = uiState.progressMessage,
-            progressPercent = uiState.progressPercent
+            progressPercent = uiState.progressPercent,
+            onCancel = { viewModel.cancelProcessing() }
         )
     }
 
@@ -223,17 +221,21 @@ fun ImagesToPdfScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    com.pdfcompress.CamScanner.core.ui.components.OutputFileActionsRow(
+                        outputUri = success.outputUri
+                    )
                 }
             },
             confirmButton = {
-                Button(
+                ModernGradientButton(
+                    text = "العودة للرئيسية",
                     onClick = {
                         viewModel.dismissSuccess()
                         onNavigateBack()
-                    }
-                ) {
-                    Text("العودة للرئيسية")
-                }
+                    },
+                    height = 44.dp
+                )
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissSuccess() }) {

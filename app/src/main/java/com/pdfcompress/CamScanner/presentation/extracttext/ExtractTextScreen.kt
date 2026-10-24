@@ -56,6 +56,10 @@ import androidx.compose.ui.unit.sp
 import com.pdfcompress.CamScanner.core.ui.components.EmptyStateView
 import com.pdfcompress.CamScanner.core.ui.components.ErrorBanner
 import com.pdfcompress.CamScanner.core.ui.components.LoadingDialog
+import com.pdfcompress.CamScanner.core.ui.components.ModernBottomBarContainer
+import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
+import com.pdfcompress.CamScanner.core.ui.components.ModernSoftButton
+import com.pdfcompress.CamScanner.core.ui.components.OutputFileActionsRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,37 +120,28 @@ fun ExtractTextScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(16.dp)
-            ) {
+            ModernBottomBarContainer {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedButton(
+                    ModernSoftButton(
+                        text = if (uiState.sourceUri == null) "اختيار مستند" else "تغيير المستند",
+                        icon = Icons.Default.FileOpen,
                         onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !uiState.isProcessing
-                    ) {
-                        Icon(imageVector = Icons.Default.FileOpen, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (uiState.sourceUri == null) "اختيار مستند" else "تغيير المستند")
-                    }
+                        enabled = !uiState.isProcessing,
+                        modifier = Modifier.weight(1f)
+                    )
 
                     if (uiState.extractionResult != null) {
-                        Button(
+                        ModernGradientButton(
+                            text = "حفظ كملف TXT",
+                            icon = Icons.Default.Download,
                             onClick = {
                                 saveTextPickerLauncher.launch("${uiState.sourceName ?: "extracted_text"}.txt")
                             },
                             modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(imageVector = Icons.Default.Download, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("حفظ كملف TXT")
-                        }
+                        )
                     }
                 }
             }
@@ -163,7 +158,8 @@ fun ExtractTextScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 ErrorBanner(
                     errorMessage = error,
-                    onRetry = { viewModel.dismissError() }
+                    onRetry = { viewModel.retryExtraction() },
+                    onDismiss = { viewModel.dismissError() }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -311,7 +307,8 @@ fun ExtractTextScreen(
         LoadingDialog(
             title = "جارٍ استخراج وفهرسة النصوص محلياً…",
             message = uiState.progressMessage,
-            progressPercent = uiState.progressPercent
+            progressPercent = uiState.progressPercent,
+            onCancel = { viewModel.cancelProcessing() }
         )
     }
 
@@ -327,11 +324,21 @@ fun ExtractTextScreen(
                 )
             },
             title = { Text("تم الحفظ بنجاح") },
-            text = { Text(msg) },
-            confirmButton = {
-                Button(onClick = { viewModel.dismissSaveSuccess() }) {
-                    Text("حسناً")
+            text = {
+                Column {
+                    Text(msg)
+                    OutputFileActionsRow(
+                        outputUri = uiState.savedTextUri,
+                        defaultMimeType = "text/plain"
+                    )
                 }
+            },
+            confirmButton = {
+                ModernGradientButton(
+                    text = "حسناً",
+                    onClick = { viewModel.dismissSaveSuccess() },
+                    height = 44.dp
+                )
             }
         )
     }

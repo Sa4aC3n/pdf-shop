@@ -9,6 +9,8 @@ import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.domain.model.CompressionLevel
 import com.pdfcompress.CamScanner.domain.model.CompressionResult
 import com.pdfcompress.CamScanner.domain.usecase.CompressPdfUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,8 +26,10 @@ data class CompressUiState(
     val progressPercent: Int? = null,
     val progressMessage: String? = null,
     val errorMessage: String? = null,
+    val lastDestinationUri: Uri? = null,
     val successResult: CompressionResult? = null,
-    val outputName: String? = null
+    val outputName: String? = null,
+    val outputUri: Uri? = null
 )
 
 class CompressViewModel(
@@ -35,6 +39,7 @@ class CompressViewModel(
 
     private val _uiState = MutableStateFlow(CompressUiState())
     val uiState: StateFlow<CompressUiState> = _uiState.asStateFlow()
+    private var processingJob: Job? = null
 
     fun setSourceFile(uri: Uri) {
         safHelper.takePersistableUriPermission(uri)
@@ -47,7 +52,8 @@ class CompressViewModel(
                 sourceName = name,
                 sourceSizeBytes = size,
                 errorMessage = null,
-                successResult = null
+                successResult = null,
+                outputUri = null
             )
         }
     }
@@ -64,62 +70,90 @@ class CompressViewModel(
 
         val destName = safHelper.getDisplayName(destinationUri)
 
-        viewModelScope.launch {
+        processingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isProcessing = true,
                     progressPercent = 0,
                     progressMessage = "بدء ضغط المستند محلياً…",
                     errorMessage = null,
-                    successResult = null
+                    lastDestinationUri = destinationUri,
+                    successResult = null,
+                    outputUri = null
                 )
             }
 
-            val result = compressPdfUseCase(
-                sourceUri = srcUri,
-                sourceName = srcName,
-                level = currentState.selectedLevel,
-                destinationUri = destinationUri,
-                destinationName = destName,
-                onProgress = { progress ->
-                    _uiState.update {
-                        it.copy(
-                            progressPercent = progress.percentage,
-                            progressMessage = progress.stage
-                        )
+            try {
+                val result = compressPdfUseCase(
+                    sourceUri = srcUri,
+                    sourceName = srcName,
+                    level = currentState.selectedLevel,
+                    destinationUri = destinationUri,
+                    destinationName = destName,
+                    onProgress = { progress ->
+                        _uiState.update {
+                            it.copy(
+                                progressPercent = progress.percentage,
+                                progressMessage = progress.stage
+                            )
+                        }
                     }
-                }
-            )
+                )
 
-            when (result) {
-                is AppResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            successResult = result.data,
-                            outputName = destName
-                        )
+                when (result) {
+                    is AppResult.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                successResult = result.data,
+                                outputName = destName,
+                                outputUri = destinationUri
+                            )
+                        }
                     }
-                }
-                is AppResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            errorMessage = result.error.message
-                        )
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                errorMessage = result.error.message
+                            )
+                        }
                     }
+                    is AppResult.Progress -> {}
                 }
-                is AppResult.Progress -> {}
+            } catch (_: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        progressPercent = null,
+                        progressMessage = null,
+                        errorMessage = "تم إلغاء عملية الضغط بناءً على طلبك"
+                    )
+                }
             }
         }
     }
 
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+    }
+
+    fun retryLastCompression() {
+        val dest = _uiState.value.lastDestinationUri
+        if (dest != null) {
+            startCompression(dest)
+        } else {
+            dismissError()
+        }
+    }
+
     fun dismissSuccess() {
-        _uiState.update { it.copy(successResult = null) }
+        _uiState.update { it.copy(successResult = null, outputUri = null) }
     }
 
     fun dismissError() {

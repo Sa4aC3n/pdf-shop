@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.core.ui.components
+package com.pdfcompress.CamScanner.core.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -91,12 +91,12 @@ fun LoadingDialog(
 
                 if (onCancel != null) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedButton(
+                    ModernSoftButton(
+                        text = "إلغاء العملية",
                         onClick = onCancel,
+                        height = 46.dp,
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("إلغاء العملية")
-                    }
+                    )
                 }
             }
         }

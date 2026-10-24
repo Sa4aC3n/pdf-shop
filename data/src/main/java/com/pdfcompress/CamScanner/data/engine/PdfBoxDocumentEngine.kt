@@ -204,6 +204,20 @@ class PdfBoxDocumentEngine(
                 )
             }
 
+            try {
+                PDDocument.load(tempOutputFile).use { checkDoc ->
+                    if (checkDoc.numberOfPages == 0) {
+                        return@withContext AppResult.Error(
+                            AppError.CorruptedPdf("ملف الـ PDF الناتج من الصور فارغ ولا يحتوي على صفحات")
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                return@withContext AppResult.Error(
+                    AppError.CorruptedPdf("تعذر التحقق من سلامة ملف PDF الناتج", e)
+                )
+            }
+
             onProgress(EngineProgress(95, "نسخ الملف النهائي إلى وجهة الحفظ"))
 
             val copied = tempFileManager.copyFileToUri(tempOutputFile, destinationUri)

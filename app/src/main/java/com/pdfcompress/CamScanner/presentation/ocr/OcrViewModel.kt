@@ -16,7 +16,9 @@ import com.pdfcompress.CamScanner.core.common.result.AppResult
 import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.core.files.TempFileManager
 import com.pdfcompress.CamScanner.domain.usecase.OcrUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +40,8 @@ data class OcrUiState(
     val characterCount: Int = 0,
     val searchQuery: String = "",
     val copiedToClipboard: Boolean = false,
-    val saveSuccessMessage: String? = null
+    val saveSuccessMessage: String? = null,
+    val savedTextUri: Uri? = null
 )
 
 class OcrViewModel(
@@ -50,13 +53,15 @@ class OcrViewModel(
 
     private val _uiState = MutableStateFlow(OcrUiState())
     val uiState: StateFlow<OcrUiState> = _uiState.asStateFlow()
+    private var processingJob: Job? = null
 
     fun setSourceFile(uri: Uri) {
         safHelper.takePersistableUriPermission(uri)
         val name = safHelper.getDisplayName(uri)
-        val isPdf = name.lowercase().endsWith(".pdf")
+        val mimeType = safHelper.getMimeType(uri) ?: ""
+        val isPdf = name.lowercase().endsWith(".pdf") || mimeType.equals("application/pdf", ignoreCase = true)
 
-        viewModelScope.launch {
+        processingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     sourceUri = uri,
@@ -70,102 +75,119 @@ class OcrViewModel(
                 )
             }
 
-            var preview: Bitmap? = null
-            withContext(Dispatchers.IO) {
-                try {
-                    if (isPdf) {
-                        context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
-                            val renderer = PdfRenderer(pfd)
-                            if (renderer.pageCount > 0) {
-                                val page = renderer.openPage(0)
-                                val bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
-                                page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                                page.close()
-                                preview = bmp
+            try {
+                var preview: Bitmap? = null
+                withContext(Dispatchers.IO) {
+                    try {
+                        if (isPdf) {
+                            context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                                val renderer = PdfRenderer(pfd)
+                                if (renderer.pageCount > 0) {
+                                    val page = renderer.openPage(0)
+                                    val bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+                                    page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                                    page.close()
+                                    preview = bmp
+                                }
+                                renderer.close()
                             }
-                            renderer.close()
+                        } else {
+                            context.contentResolver.openInputStream(uri)?.use { stream ->
+                                preview = BitmapFactory.decodeStream(stream)
+                            }
                         }
-                    } else {
-                        context.contentResolver.openInputStream(uri)?.use { stream ->
-                            preview = BitmapFactory.decodeStream(stream)
+                    } catch (_: Exception) {}
+                }
+
+                _uiState.update {
+                    it.copy(
+                        previewBitmap = preview,
+                        progressPercent = 20,
+                        progressMessage = if (isPdf) "بدء استخراج النصوص الرقمية من PDF…" else "تجهيز الصورة للتعرف البصري…"
+                    )
+                }
+
+                val result = ocrUseCase(
+                    sourceUri = uri,
+                    sourceName = name,
+                    isPdf = isPdf,
+                    onProgress = { progress ->
+                        _uiState.update {
+                            it.copy(
+                                progressPercent = progress.percentage,
+                                progressMessage = progress.stage
+                            )
                         }
                     }
-                } catch (_: Exception) {}
-            }
-
-            _uiState.update {
-                it.copy(
-                    previewBitmap = preview,
-                    isProcessing = false,
-                    progressPercent = null,
-                    progressMessage = null
                 )
-            }
 
-            // Automatically run OCR analysis
-            startOcrAnalysis(uri, name, isPdf)
+                when (result) {
+                    is AppResult.Success -> {
+                        val data = result.data
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                extractedText = data.text,
+                                wordCount = data.wordCount,
+                                characterCount = data.characterCount
+                            )
+                        }
+                    }
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                errorMessage = result.error.message
+                            )
+                        }
+                    }
+                    is AppResult.Progress -> {}
+                }
+            } catch (e: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        progressPercent = null,
+                        progressMessage = null,
+                        errorMessage = "تم إلغاء عملية التحليل بناءً على طلبك."
+                    )
+                }
+            }
         }
     }
 
-    private fun startOcrAnalysis(uri: Uri, name: String, isPdf: Boolean) {
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    isProcessing = true,
-                    progressPercent = 20,
-                    progressMessage = "بدء التعرف الضوئي على النصوص…",
-                    errorMessage = null
-                )
-            }
-
-            val result = ocrUseCase(
-                sourceUri = uri,
-                sourceName = name,
-                isPdf = isPdf,
-                onProgress = { progress ->
-                    _uiState.update {
-                        it.copy(
-                            progressPercent = progress.percentage,
-                            progressMessage = progress.stage
-                        )
-                    }
-                }
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+        _uiState.update {
+            it.copy(
+                isProcessing = false,
+                progressPercent = null,
+                progressMessage = null,
+                errorMessage = "تم إلغاء عملية التحليل."
             )
+        }
+    }
 
-            when (result) {
-                is AppResult.Success -> {
-                    val data = result.data
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            extractedText = data.text,
-                            wordCount = data.wordCount,
-                            characterCount = data.characterCount
-                        )
-                    }
-                }
-                is AppResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            errorMessage = result.error.message
-                        )
-                    }
-                }
-                is AppResult.Progress -> {}
-            }
+    fun retryAnalysis() {
+        val uri = _uiState.value.sourceUri
+        if (uri != null) {
+            setSourceFile(uri)
+        } else {
+            dismissError()
         }
     }
 
     fun openWithGoogleLens(ctx: Context) {
         val uri = _uiState.value.sourceUri ?: return
+        val mime = if (_uiState.value.isPdf) "application/pdf" else "image/*"
         try {
             val lensIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "image/*"
+                type = mime
                 putExtra(Intent.EXTRA_STREAM, uri)
                 setPackage("com.google.ar.lens")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -174,13 +196,17 @@ class OcrViewModel(
             if (lensIntent.resolveActivity(ctx.packageManager) != null) {
                 ctx.startActivity(lensIntent)
             } else {
-                // If Lens standalone package is not present, open via standard image recognition/chooser
                 val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "image/*"
+                    type = mime
                     putExtra(Intent.EXTRA_STREAM, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                ctx.startActivity(Intent.createChooser(fallbackIntent, "التعرف الضوئي عبر تطبيق خارجي"))
+                ctx.startActivity(
+                    Intent.createChooser(fallbackIntent, "التعرف الضوئي عبر تطبيق خارجي").apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                )
             }
         } catch (e: Exception) {
             _uiState.update { it.copy(errorMessage = "تعذر فتح عدسة Google: ${e.localizedMessage}") }
@@ -193,6 +219,10 @@ class OcrViewModel(
 
     fun copyToClipboard() {
         val text = _uiState.value.extractedText ?: return
+        if (text.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "لا يوجد نص مستخرج لنسخه") }
+            return
+        }
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("OCR Text", text)
         clipboard.setPrimaryClip(clip)
@@ -201,6 +231,10 @@ class OcrViewModel(
 
     fun shareText(ctx: Context) {
         val text = _uiState.value.extractedText ?: return
+        if (text.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "لا يوجد نص مستخرج لمشاركته") }
+            return
+        }
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, text)
@@ -210,12 +244,32 @@ class OcrViewModel(
 
     fun saveAsTextFile(destinationUri: Uri) {
         val text = _uiState.value.extractedText ?: return
+        if (text.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "لا يوجد نص مستخرج لحفظه") }
+            return
+        }
         viewModelScope.launch {
             try {
-                context.contentResolver.openOutputStream(destinationUri, "wt")?.use { out ->
-                    out.write(text.toByteArray(Charsets.UTF_8))
+                val written = withContext(Dispatchers.IO) {
+                    val out = context.contentResolver.openOutputStream(destinationUri, "wt")
+                        ?: return@withContext false
+                    out.use { stream ->
+                        val bytes = text.toByteArray(Charsets.UTF_8)
+                        stream.write(bytes)
+                        stream.flush()
+                    }
+                    safHelper.isUriAccessible(destinationUri)
                 }
-                _uiState.update { it.copy(saveSuccessMessage = "تم حفظ الملف النصي بنجاح") }
+                if (written) {
+                    _uiState.update {
+                        it.copy(
+                            saveSuccessMessage = "تم حفظ الملف النصي بنجاح (${text.length} حرفاً)",
+                            savedTextUri = destinationUri
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(errorMessage = "تعذر فتح مسار الحفظ المختار لكتابة الملف النصي") }
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = "تعذر حفظ الملف النصي: ${e.localizedMessage}") }
             }
@@ -227,7 +281,7 @@ class OcrViewModel(
     }
 
     fun dismissSaveSuccess() {
-        _uiState.update { it.copy(saveSuccessMessage = null) }
+        _uiState.update { it.copy(saveSuccessMessage = null, savedTextUri = null) }
     }
 
     fun dismissError() {

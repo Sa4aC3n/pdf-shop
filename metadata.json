@@ -1,6 +1,6 @@
 {
-  "name": "CamScanner",
-  "description": "PDF and document scanner, compression, merge, split, OCR, and editing utility.",
+  "name": "ClearScan Pro: PDF Scanner",
+  "description": "YOUR ULTIMATE PDF SHOP — PDF and document scanner, compression, merge, split, OCR, and editing utility.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

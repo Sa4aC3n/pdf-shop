@@ -1,10 +1,11 @@
-﻿package com.pdfcompress.CamScanner.data.repository
+package com.pdfcompress.CamScanner.data.repository
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.pdfcompress.CamScanner.domain.model.AppColorTheme
 import com.pdfcompress.CamScanner.domain.model.AppLanguage
 import com.pdfcompress.CamScanner.domain.model.AppTheme
 import com.pdfcompress.CamScanner.domain.model.UserSettings
@@ -20,20 +21,24 @@ class SettingsRepositoryImpl(
 
     private object PreferencesKeys {
         val THEME = stringPreferencesKey("app_theme")
+        val COLOR_THEME = stringPreferencesKey("app_color_theme")
         val LANGUAGE = stringPreferencesKey("app_language")
         val APP_LOCK = booleanPreferencesKey("app_lock")
     }
 
     override val settings: Flow<UserSettings> = context.dataStore.data.map { preferences ->
         val themeString = preferences[PreferencesKeys.THEME] ?: AppTheme.SYSTEM.name
+        val colorThemeString = preferences[PreferencesKeys.COLOR_THEME] ?: AppColorTheme.CRIMSON_RED.name
         val langString = preferences[PreferencesKeys.LANGUAGE] ?: AppLanguage.ARABIC.name
         val lockEnabled = preferences[PreferencesKeys.APP_LOCK] ?: false
 
         val theme = try { AppTheme.valueOf(themeString) } catch (_: Exception) { AppTheme.SYSTEM }
+        val colorTheme = try { AppColorTheme.valueOf(colorThemeString) } catch (_: Exception) { AppColorTheme.CRIMSON_RED }
         val language = try { AppLanguage.valueOf(langString) } catch (_: Exception) { AppLanguage.ARABIC }
 
         UserSettings(
             theme = theme,
+            colorTheme = colorTheme,
             language = language,
             isAppLockEnabled = lockEnabled
         )
@@ -42,6 +47,12 @@ class SettingsRepositoryImpl(
     override suspend fun updateTheme(theme: AppTheme) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.THEME] = theme.name
+        }
+    }
+
+    override suspend fun updateColorTheme(colorTheme: AppColorTheme) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.COLOR_THEME] = colorTheme.name
         }
     }
 

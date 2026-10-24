@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.presentation.merge
+package com.pdfcompress.CamScanner.presentation.merge
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.pdfcompress.CamScanner.core.common.result.AppResult
 import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.domain.usecase.MergePdfsUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +33,7 @@ data class MergeUiState(
     val progressPercent: Int? = null,
     val progressMessage: String? = null,
     val errorMessage: String? = null,
+    val lastDestinationUri: Uri? = null,
     val successInfo: MergeSuccessInfo? = null
 )
 
@@ -41,6 +44,7 @@ class MergeViewModel(
 
     private val _uiState = MutableStateFlow(MergeUiState())
     val uiState: StateFlow<MergeUiState> = _uiState.asStateFlow()
+    private var processingJob: Job? = null
 
     fun addFiles(uris: List<Uri>) {
         if (uris.isEmpty()) return
@@ -94,7 +98,7 @@ class MergeViewModel(
 
     fun startMerge(destinationUri: Uri) {
         val currentState = _uiState.value
-        if (currentState.isProcessing) return // Prevent double click
+        if (currentState.isProcessing) return
         if (currentState.selectedFiles.size < 2) {
             _uiState.update { it.copy(errorMessage = "يجب اختيار ملفين على الأقل للدمج") }
             return
@@ -102,62 +106,88 @@ class MergeViewModel(
 
         val destName = safHelper.getDisplayName(destinationUri)
 
-        viewModelScope.launch {
+        processingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isProcessing = true,
                     progressPercent = 0,
                     progressMessage = "بدء التحضير للدمج…",
                     errorMessage = null,
+                    lastDestinationUri = destinationUri,
                     successInfo = null
                 )
             }
 
-            val inputUris = currentState.selectedFiles.map { it.uri }
-            val inputNames = currentState.selectedFiles.map { it.displayName }
+            try {
+                val inputUris = currentState.selectedFiles.map { it.uri }
+                val inputNames = currentState.selectedFiles.map { it.displayName }
 
-            val result = mergePdfsUseCase(
-                inputUris = inputUris,
-                inputNames = inputNames,
-                destinationUri = destinationUri,
-                destinationName = destName,
-                onProgress = { progress ->
-                    _uiState.update {
-                        it.copy(
-                            progressPercent = progress.percentage,
-                            progressMessage = progress.stage
-                        )
-                    }
-                }
-            )
-
-            when (result) {
-                is AppResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            successInfo = MergeSuccessInfo(
-                                outputName = destName,
-                                outputSizeBytes = result.data,
-                                outputUri = destinationUri
+                val result = mergePdfsUseCase(
+                    inputUris = inputUris,
+                    inputNames = inputNames,
+                    destinationUri = destinationUri,
+                    destinationName = destName,
+                    onProgress = { progress ->
+                        _uiState.update {
+                            it.copy(
+                                progressPercent = progress.percentage,
+                                progressMessage = progress.stage
                             )
-                        )
+                        }
                     }
-                }
-                is AppResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            errorMessage = result.error.message
-                        )
+                )
+
+                when (result) {
+                    is AppResult.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                successInfo = MergeSuccessInfo(
+                                    outputName = destName,
+                                    outputSizeBytes = result.data,
+                                    outputUri = destinationUri
+                                )
+                            )
+                        }
                     }
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                errorMessage = result.error.message
+                            )
+                        }
+                    }
+                    is AppResult.Progress -> {}
                 }
-                is AppResult.Progress -> {}
+            } catch (_: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        progressPercent = null,
+                        progressMessage = null,
+                        errorMessage = "تم إلغاء عملية الدمج بناءً على طلبك"
+                    )
+                }
             }
+        }
+    }
+
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+    }
+
+    fun retryLastMerge() {
+        val dest = _uiState.value.lastDestinationUri
+        if (dest != null) {
+            startMerge(dest)
+        } else {
+            dismissError()
         }
     }
 

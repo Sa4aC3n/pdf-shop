@@ -52,7 +52,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Share
 import com.pdfcompress.CamScanner.core.ui.components.EmptyStateView
+import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
+import com.pdfcompress.CamScanner.core.ui.components.ModernSoftButton
+import com.pdfcompress.CamScanner.core.ui.components.openOutputUri
+import com.pdfcompress.CamScanner.core.ui.components.shareOutputUri
 import com.pdfcompress.CamScanner.domain.model.OperationStatus
 import com.pdfcompress.CamScanner.domain.model.ToolType
 import java.text.SimpleDateFormat
@@ -249,40 +255,35 @@ fun HistoryItemCard(item: HistoryItemUi) {
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                             )
                         }
-                    } else if (record.outputDocumentUri != null) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            TextButton(
-                                onClick = {
-                                    try {
-                                        val uri = android.net.Uri.parse(record.outputDocumentUri)
-                                        val mime = context.contentResolver.getType(uri) ?: "application/pdf"
-                                        val openIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                            setDataAndType(uri, mime)
-                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
-                                        context.startActivity(android.content.Intent.createChooser(openIntent, "فتح الملف"))
-                                    } catch (_: Exception) {}
-                                }
-                            ) {
-                                Text("فتح")
-                            }
-                            TextButton(
-                                onClick = {
-                                    try {
-                                        val uri = android.net.Uri.parse(record.outputDocumentUri)
-                                        val mime = context.contentResolver.getType(uri) ?: "application/pdf"
-                                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                            type = mime
-                                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
-                                        context.startActivity(android.content.Intent.createChooser(shareIntent, "مشاركة الملف"))
-                                    } catch (_: Exception) {}
-                                }
-                            ) {
-                                Text("مشاركة")
-                            }
-                        }
+                    }
+                }
+
+                if (item.isFileAccessible && record.outputDocumentUri != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        ModernGradientButton(
+                            text = "مشاركة الملف",
+                            icon = Icons.Default.Share,
+                            onClick = {
+                                val uri = android.net.Uri.parse(record.outputDocumentUri)
+                                shareOutputUri(context, uri)
+                            },
+                            height = 42.dp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ModernSoftButton(
+                            text = "فتح الملف",
+                            icon = Icons.AutoMirrored.Filled.OpenInNew,
+                            onClick = {
+                                val uri = android.net.Uri.parse(record.outputDocumentUri)
+                                openOutputUri(context, uri)
+                            },
+                            height = 42.dp,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }

@@ -70,4 +70,21 @@ class OcrUseCaseTest {
         assertEquals(1, fakeHistory.recordedOperations.size)
         assertEquals(OperationStatus.FAILED, fakeHistory.recordedOperations[0].status)
     }
+
+    @Test
+    fun `raster image OCR does not record fake SUCCESS in history`() = runBlocking {
+        val srcUri = mock(Uri::class.java)
+        val result = useCase(
+            sourceUri = srcUri,
+            sourceName = "photo.jpg",
+            isPdf = false,
+            onProgress = {}
+        )
+
+        assertTrue(result is AppResult.Success)
+        val data = (result as AppResult.Success).data
+        assertEquals("", data.text)
+        assertEquals(0, data.wordCount)
+        assertTrue(fakeHistory.recordedOperations.isEmpty())
+    }
 }

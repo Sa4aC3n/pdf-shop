@@ -14,7 +14,9 @@ import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.core.files.ScanFilter
 import com.pdfcompress.CamScanner.core.files.TempFileManager
 import com.pdfcompress.CamScanner.domain.usecase.ScanDocumentUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,7 +44,8 @@ data class ScannerUiState(
     val progressMessage: String? = null,
     val errorMessage: String? = null,
     val successSizeBytes: Long? = null,
-    val outputName: String? = null
+    val outputName: String? = null,
+    val outputUri: Uri? = null
 )
 
 class ScannerViewModel(
@@ -54,17 +57,28 @@ class ScannerViewModel(
 
     private val _uiState = MutableStateFlow(ScannerUiState())
     val uiState: StateFlow<ScannerUiState> = _uiState.asStateFlow()
+    private var processingJob: Job? = null
+    private var lastDestinationUri: Uri? = null
 
     fun onPageCaptured(file: File) {
+        if (!file.exists() || file.length() == 0L) {
+            _uiState.update { it.copy(errorMessage = "فشل حفظ الصورة الملتقطة؛ الملف فارغ أو غير صالح") }
+            return
+        }
         val newPage = ScannedPage(rawFile = file)
         _uiState.update { current ->
             val updatedList = current.capturedPages + newPage
             current.copy(
                 capturedPages = updatedList,
                 activePageIndex = updatedList.size - 1,
-                isCameraMode = false
+                isCameraMode = false,
+                errorMessage = null
             )
         }
+    }
+
+    fun onCaptureError(message: String) {
+        _uiState.update { it.copy(errorMessage = message) }
     }
 
     fun onImageImported(uri: Uri) {
@@ -146,21 +160,24 @@ class ScannerViewModel(
 
     fun saveAsPdf(destinationUri: Uri) {
         val pages = _uiState.value.capturedPages
+        if (_uiState.value.isProcessing) return
         if (pages.isEmpty()) {
             _uiState.update { it.copy(errorMessage = "يجب مسح صفحة واحدة على الأقل قبل الحفظ") }
             return
         }
 
+        lastDestinationUri = destinationUri
         val destName = safHelper.getDisplayName(destinationUri)
 
-        viewModelScope.launch {
+        processingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isProcessing = true,
                     progressPercent = 0,
                     progressMessage = "تطبيق فلاتر المستندات وتجهيز الصفحات…",
                     errorMessage = null,
-                    successSizeBytes = null
+                    successSizeBytes = null,
+                    outputUri = null
                 )
             }
 
@@ -178,6 +195,7 @@ class ScannerViewModel(
                         }
 
                         var bitmap: Bitmap = BitmapFactory.decodeFile(page.rawFile.absolutePath)
+                            ?: throw IllegalStateException("تعذر فك ترميز الصورة الممسوحة رقم ${i + 1}")
                         if (page.rotationDegrees % 360f != 0f) {
                             bitmap = DocumentImageEnhancer.rotate(bitmap, page.rotationDegrees)
                         }
@@ -189,6 +207,7 @@ class ScannerViewModel(
                         tempProcessedFiles.add(outFile)
                         FileOutputStream(outFile).use { fos ->
                             bitmap.compress(Bitmap.CompressFormat.JPEG, 92, fos)
+                            fos.flush()
                         }
                         processedUris.add(Uri.fromFile(outFile))
                     }
@@ -218,7 +237,8 @@ class ScannerViewModel(
                                 progressPercent = null,
                                 progressMessage = null,
                                 successSizeBytes = result.data,
-                                outputName = destName
+                                outputName = destName,
+                                outputUri = destinationUri
                             )
                         }
                     }
@@ -234,6 +254,15 @@ class ScannerViewModel(
                     }
                     is AppResult.Progress -> {}
                 }
+            } catch (e: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        progressPercent = null,
+                        progressMessage = null,
+                        errorMessage = "تم إلغاء عملية حفظ المستند بناءً على طلبك."
+                    )
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -246,6 +275,28 @@ class ScannerViewModel(
             } finally {
                 tempProcessedFiles.forEach { it.delete() }
             }
+        }
+    }
+
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+        _uiState.update {
+            it.copy(
+                isProcessing = false,
+                progressPercent = null,
+                progressMessage = null,
+                errorMessage = "تم إلغاء عملية حفظ المستند."
+            )
+        }
+    }
+
+    fun retryLastSave() {
+        val dest = lastDestinationUri
+        if (dest != null && _uiState.value.capturedPages.isNotEmpty()) {
+            saveAsPdf(dest)
+        } else {
+            dismissError()
         }
     }
 

@@ -38,13 +38,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FilterBAndW
 import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.AlertDialog
@@ -85,6 +89,11 @@ import com.pdfcompress.CamScanner.core.files.DocumentImageEnhancer
 import com.pdfcompress.CamScanner.core.files.ScanFilter
 import com.pdfcompress.CamScanner.core.ui.components.ErrorBanner
 import com.pdfcompress.CamScanner.core.ui.components.LoadingDialog
+import com.pdfcompress.CamScanner.core.ui.components.ModernBottomBarContainer
+import com.pdfcompress.CamScanner.core.ui.components.ModernFilterTile
+import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
+import com.pdfcompress.CamScanner.core.ui.components.ModernSoftButton
+import com.pdfcompress.CamScanner.core.ui.components.OutputFileActionsRow
 import java.io.File
 import java.util.concurrent.Executor
 
@@ -146,6 +155,7 @@ fun ScannerScreen(
                     capturedCount = uiState.capturedPages.size,
                     onToggleFlash = { viewModel.toggleFlash() },
                     onCapture = { file -> viewModel.onPageCaptured(file) },
+                    onCaptureError = { errMsg -> viewModel.onCaptureError(errMsg) },
                     onOpenGallery = { galleryLauncher.launch(arrayOf("image/*")) },
                     onReviewClicked = { viewModel.switchToReview() },
                     onNavigateBack = onNavigateBack
@@ -181,7 +191,8 @@ fun ScannerScreen(
                 ) {
                     ErrorBanner(
                         errorMessage = error,
-                        onRetry = { viewModel.dismissError() }
+                        onRetry = { viewModel.retryLastSave() },
+                        onDismiss = { viewModel.dismissError() }
                     )
                 }
             }
@@ -190,7 +201,8 @@ fun ScannerScreen(
                 LoadingDialog(
                     title = "جارٍ تجهيز وحفظ مستند PDF…",
                     message = uiState.progressMessage,
-                    progressPercent = uiState.progressPercent
+                    progressPercent = uiState.progressPercent,
+                    onCancel = { viewModel.cancelProcessing() }
                 )
             }
 
@@ -228,17 +240,18 @@ fun ScannerScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            OutputFileActionsRow(outputUri = uiState.outputUri)
                         }
                     },
                     confirmButton = {
-                        Button(
+                        ModernGradientButton(
+                            text = "العودة للرئيسية",
                             onClick = {
                                 viewModel.dismissSuccess()
                                 onNavigateBack()
-                            }
-                        ) {
-                            Text("العودة للرئيسية")
-                        }
+                            },
+                            height = 44.dp
+                        )
                     },
                     dismissButton = {
                         TextButton(onClick = { viewModel.dismissSuccess() }) {
@@ -283,23 +296,19 @@ fun CameraPermissionView(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
+        ModernGradientButton(
+            text = "منح إذن الكاميرا",
+            icon = Icons.Default.CameraAlt,
             onClick = onRequestPermission,
             modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("منح إذن الكاميرا")
-        }
+        )
         Spacer(modifier = Modifier.height(12.dp))
-        OutlinedButton(
+        ModernSoftButton(
+            text = "أو استيراد صورة من المعرض",
+            icon = Icons.Default.PhotoLibrary,
             onClick = onImportFromGallery,
             modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("أو استيراد صورة من المعرض")
-        }
+        )
         Spacer(modifier = Modifier.height(12.dp))
         TextButton(onClick = onNavigateBack) {
             Text("الرجوع")
@@ -313,6 +322,7 @@ fun CameraCaptureView(
     capturedCount: Int,
     onToggleFlash: () -> Unit,
     onCapture: (File) -> Unit,
+    onCaptureError: (String) -> Unit,
     onOpenGallery: () -> Unit,
     onReviewClicked: () -> Unit,
     onNavigateBack: () -> Unit
@@ -320,6 +330,7 @@ fun CameraCaptureView(
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
+    var isCapturing by remember { mutableStateOf(false) }
 
     LaunchedEffect(flashMode) {
         imageCapture?.flashMode = flashMode
@@ -351,7 +362,9 @@ fun CameraCaptureView(
                             preview,
                             capture
                         )
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) {
+                        onCaptureError("تعذر تشغيل معاينة الكاميرا: ${e.localizedMessage ?: "الكاميرا غير متوفرة"}")
+                    }
                 }, ContextCompat.getMainExecutor(ctx))
                 previewView
             },
@@ -427,9 +440,14 @@ fun CameraCaptureView(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(Color.White)
-                    .clickable {
-                        val capture = imageCapture ?: return@clickable
+                    .background(if (isCapturing) Color.Gray else Color.White)
+                    .clickable(enabled = !isCapturing) {
+                        val capture = imageCapture
+                        if (capture == null) {
+                            onCaptureError("الكاميرا غير جاهزة بعد أو غير متوفرة. يمكنك استيراد صورة من المعرض.")
+                            return@clickable
+                        }
+                        isCapturing = true
                         val photoFile = File(context.cacheDir, "scan_${System.currentTimeMillis()}.jpg")
                         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
@@ -438,10 +456,14 @@ fun CameraCaptureView(
                             ContextCompat.getMainExecutor(context),
                             object : ImageCapture.OnImageSavedCallback {
                                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                                    isCapturing = false
                                     onCapture(photoFile)
                                 }
 
-                                override fun onError(exception: ImageCaptureException) {}
+                                override fun onError(exception: ImageCaptureException) {
+                                    isCapturing = false
+                                    onCaptureError("فشل التقاط الصورة: ${exception.localizedMessage ?: "خطأ في الكاميرا"}")
+                                }
                             }
                         )
                     }
@@ -452,7 +474,7 @@ fun CameraCaptureView(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
-                        .background(Color.Red)
+                        .background(if (isCapturing) Color.DarkGray else Color.Red)
                 )
             }
 
@@ -544,58 +566,64 @@ fun PageReviewView(
             )
         },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(16.dp)
-            ) {
-                // Filter selection chips
+            ModernBottomBarContainer {
                 Text(
-                    text = "فلتر المستند:",
+                    text = "فلاتر وتحسين المستند (FILTERS)",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    ModernFilterTile(
+                        label = "تدوير 90°",
+                        icon = Icons.AutoMirrored.Filled.RotateRight,
+                        selected = false,
+                        onClick = onRotate,
+                        modifier = Modifier.weight(1f)
+                    )
                     ScanFilter.entries.forEach { filter ->
                         val isSelected = activePage?.filter == filter
-                        FilterChip(
+                        val filterIcon = when (filter) {
+                            ScanFilter.ORIGINAL -> Icons.Default.Image
+                            ScanFilter.GRAYSCALE -> Icons.Default.FilterBAndW
+                            ScanFilter.DOCUMENT_BW -> Icons.Default.Contrast
+                            else -> Icons.Default.AutoFixHigh
+                        }
+                        ModernFilterTile(
+                            label = filter.titleAr,
+                            icon = filterIcon,
                             selected = isSelected,
                             onClick = { onFilterSelected(filter) },
-                            label = { Text(filter.titleAr) },
                             modifier = Modifier.weight(1f)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedButton(
+                    ModernSoftButton(
+                        text = "صفحة أخرى",
+                        icon = Icons.Default.AddAPhoto,
                         onClick = onAddMore,
                         modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.AddAPhoto, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("صفحة أخرى")
-                    }
+                    )
 
-                    Button(
+                    ModernGradientButton(
+                        text = "تصدير PDF (${uiState.capturedPages.size})",
+                        icon = Icons.Default.PictureAsPdf,
                         onClick = onSavePdf,
                         modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("تصدير كـ PDF (${uiState.capturedPages.size})")
-                    }
+                    )
                 }
             }
         }

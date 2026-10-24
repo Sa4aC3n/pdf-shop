@@ -8,6 +8,8 @@ import com.pdfcompress.CamScanner.core.common.result.AppResult
 import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.domain.model.ExportImagesResult
 import com.pdfcompress.CamScanner.domain.usecase.PdfToImagesUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +27,8 @@ data class PdfToImagesUiState(
     val progressMessage: String? = null,
     val errorMessage: String? = null,
     val successResult: ExportImagesResult? = null,
-    val outputName: String? = null
+    val outputName: String? = null,
+    val outputUri: Uri? = null
 )
 
 class PdfToImagesViewModel(
@@ -35,6 +38,8 @@ class PdfToImagesViewModel(
 
     private val _uiState = MutableStateFlow(PdfToImagesUiState())
     val uiState: StateFlow<PdfToImagesUiState> = _uiState.asStateFlow()
+    private var processingJob: Job? = null
+    private var lastDestinationUri: Uri? = null
 
     fun setSourceFile(uri: Uri) {
         safHelper.takePersistableUriPermission(uri)
@@ -103,59 +108,100 @@ class PdfToImagesViewModel(
             return
         }
 
+        lastDestinationUri = destinationUri
         val destName = safHelper.getDisplayName(destinationUri)
         val sortedPages = currentState.selectedPages.toList().sorted()
 
-        viewModelScope.launch {
+        processingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isProcessing = true,
                     progressPercent = 0,
                     progressMessage = "بدء تصدير الصفحات كصور…",
                     errorMessage = null,
-                    successResult = null
+                    successResult = null,
+                    outputUri = null
                 )
             }
 
-            val result = useCase(
-                sourceUri = srcUri,
-                sourceName = srcName,
-                selectedPages = sortedPages,
-                destinationUri = destinationUri,
-                destinationName = destName,
-                onProgress = { progress ->
-                    _uiState.update {
-                        it.copy(
-                            progressPercent = progress.percentage,
-                            progressMessage = progress.stage
-                        )
+            try {
+                val result = useCase(
+                    sourceUri = srcUri,
+                    sourceName = srcName,
+                    selectedPages = sortedPages,
+                    destinationUri = destinationUri,
+                    destinationName = destName,
+                    onProgress = { progress ->
+                        _uiState.update {
+                            it.copy(
+                                progressPercent = progress.percentage,
+                                progressMessage = progress.stage
+                            )
+                        }
                     }
-                }
-            )
+                )
 
-            when (result) {
-                is AppResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            successResult = result.data,
-                            outputName = destName
-                        )
+                when (result) {
+                    is AppResult.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                successResult = result.data,
+                                outputName = destName,
+                                outputUri = destinationUri
+                            )
+                        }
                     }
-                }
-                is AppResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            errorMessage = result.error.message
-                        )
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                errorMessage = result.error.message
+                            )
+                        }
                     }
+                    is AppResult.Progress -> {}
                 }
-                is AppResult.Progress -> {}
+            } catch (e: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        progressPercent = null,
+                        progressMessage = null,
+                        errorMessage = "تم إلغاء عملية التصدير بناءً على طلبك."
+                    )
+                }
+            }
+        }
+    }
+
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+        _uiState.update {
+            it.copy(
+                isProcessing = false,
+                progressPercent = null,
+                progressMessage = null,
+                errorMessage = "تم إلغاء عملية التصدير."
+            )
+        }
+    }
+
+    fun retryLastExport() {
+        val dest = lastDestinationUri
+        if (dest != null && _uiState.value.selectedPages.isNotEmpty()) {
+            startExport(dest)
+        } else {
+            val src = _uiState.value.sourceUri
+            if (src != null) {
+                setSourceFile(src)
+            } else {
+                dismissError()
             }
         }
     }

@@ -1,5 +1,6 @@
-﻿package com.pdfcompress.CamScanner.domain.usecase
+package com.pdfcompress.CamScanner.domain.usecase
 
+import com.pdfcompress.CamScanner.domain.model.AppColorTheme
 import com.pdfcompress.CamScanner.domain.model.AppLanguage
 import com.pdfcompress.CamScanner.domain.model.AppTheme
 import com.pdfcompress.CamScanner.domain.model.UserSettings
@@ -19,6 +20,10 @@ class UpdateSettingsUseCase(
 ) {
     suspend fun setTheme(theme: AppTheme) {
         settingsRepository.updateTheme(theme)
+    }
+
+    suspend fun setColorTheme(colorTheme: AppColorTheme) {
+        settingsRepository.updateColorTheme(colorTheme)
     }
 
     suspend fun setLanguage(language: AppLanguage) {

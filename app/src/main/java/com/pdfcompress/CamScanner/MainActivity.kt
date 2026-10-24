@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
 import com.pdfcompress.CamScanner.core.ui.theme.PDFShopTheme
 import com.pdfcompress.CamScanner.domain.model.AppLanguage
 import com.pdfcompress.CamScanner.domain.model.AppTheme
@@ -78,7 +79,13 @@ class MainActivity : FragmentActivity() {
             }
 
             CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
-                PDFShopTheme(darkTheme = isDark) {
+                PDFShopTheme(
+                    darkTheme = isDark,
+                    primaryColorLong = settings.colorTheme.primaryColorLong,
+                    primaryContainerLightLong = settings.colorTheme.primaryContainerLightLong,
+                    primaryContainerDarkLong = settings.colorTheme.primaryContainerDarkLong,
+                    secondaryColorLong = settings.colorTheme.secondaryColorLong
+                ) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         if (requiresAuth) {
                             LockScreen(
@@ -192,11 +199,11 @@ fun LockScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onAuthenticateClick) {
-                Icon(imageVector = Icons.Default.Fingerprint, contentDescription = null)
-                Spacer(modifier = Modifier.size(8.dp))
-                Text("إلغاء القفل بالبصمة")
-            }
+            ModernGradientButton(
+                text = "إلغاء القفل بالبصمة",
+                icon = Icons.Default.Fingerprint,
+                onClick = onAuthenticateClick
+            )
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.presentation.split
+package com.pdfcompress.CamScanner.presentation.split
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.pdfcompress.CamScanner.core.common.result.AppResult
 import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.domain.usecase.SplitPdfUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +32,7 @@ data class SplitUiState(
     val progressPercent: Int? = null,
     val progressMessage: String? = null,
     val errorMessage: String? = null,
+    val lastDestinationUri: Uri? = null,
     val successInfo: SplitSuccessInfo? = null
 )
 
@@ -40,6 +43,7 @@ class SplitViewModel(
 
     private val _uiState = MutableStateFlow(SplitUiState())
     val uiState: StateFlow<SplitUiState> = _uiState.asStateFlow()
+    private var processingJob: Job? = null
 
     fun setSourceFile(uri: Uri) {
         safHelper.takePersistableUriPermission(uri)
@@ -70,7 +74,7 @@ class SplitViewModel(
                     it.copy(
                         isReadingPages = false,
                         totalPages = pageCount,
-                        selectedPages = setOf(1) // Select first page by default
+                        selectedPages = setOf(1)
                     )
                 }
             }
@@ -113,61 +117,87 @@ class SplitViewModel(
         val destName = safHelper.getDisplayName(destinationUri)
         val sortedPages = currentState.selectedPages.toList().sorted()
 
-        viewModelScope.launch {
+        processingJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isProcessing = true,
                     progressPercent = 0,
                     progressMessage = "بدء استخراج الصفحات…",
                     errorMessage = null,
+                    lastDestinationUri = destinationUri,
                     successInfo = null
                 )
             }
 
-            val result = splitPdfUseCase(
-                sourceUri = sourceUri,
-                sourceName = sourceName,
-                selectedPages = sortedPages,
-                destinationUri = destinationUri,
-                destinationName = destName,
-                onProgress = { progress ->
-                    _uiState.update {
-                        it.copy(
-                            progressPercent = progress.percentage,
-                            progressMessage = progress.stage
-                        )
-                    }
-                }
-            )
-
-            when (result) {
-                is AppResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            successInfo = SplitSuccessInfo(
-                                outputName = destName,
-                                outputSizeBytes = result.data,
-                                outputUri = destinationUri,
-                                extractedPagesCount = sortedPages.size
+            try {
+                val result = splitPdfUseCase(
+                    sourceUri = sourceUri,
+                    sourceName = sourceName,
+                    selectedPages = sortedPages,
+                    destinationUri = destinationUri,
+                    destinationName = destName,
+                    onProgress = { progress ->
+                        _uiState.update {
+                            it.copy(
+                                progressPercent = progress.percentage,
+                                progressMessage = progress.stage
                             )
-                        )
+                        }
                     }
-                }
-                is AppResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isProcessing = false,
-                            progressPercent = null,
-                            progressMessage = null,
-                            errorMessage = result.error.message
-                        )
+                )
+
+                when (result) {
+                    is AppResult.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                successInfo = SplitSuccessInfo(
+                                    outputName = destName,
+                                    outputSizeBytes = result.data,
+                                    outputUri = destinationUri,
+                                    extractedPagesCount = sortedPages.size
+                                )
+                            )
+                        }
                     }
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isProcessing = false,
+                                progressPercent = null,
+                                progressMessage = null,
+                                errorMessage = result.error.message
+                            )
+                        }
+                    }
+                    is AppResult.Progress -> {}
                 }
-                is AppResult.Progress -> {}
+            } catch (_: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        progressPercent = null,
+                        progressMessage = null,
+                        errorMessage = "تم إلغاء عملية استخراج الصفحات بناءً على طلبك"
+                    )
+                }
             }
+        }
+    }
+
+    fun cancelProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+    }
+
+    fun retryLastExtraction() {
+        val dest = _uiState.value.lastDestinationUri
+        if (dest != null) {
+            startExtraction(dest)
+        } else {
+            dismissError()
         }
     }
 

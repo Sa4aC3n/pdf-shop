@@ -64,6 +64,10 @@ import androidx.compose.ui.unit.sp
 import com.pdfcompress.CamScanner.core.ui.components.EmptyStateView
 import com.pdfcompress.CamScanner.core.ui.components.ErrorBanner
 import com.pdfcompress.CamScanner.core.ui.components.LoadingDialog
+import com.pdfcompress.CamScanner.core.ui.components.ModernBottomBarContainer
+import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
+import com.pdfcompress.CamScanner.core.ui.components.ModernSoftButton
+import com.pdfcompress.CamScanner.core.ui.components.OutputFileActionsRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,54 +129,40 @@ fun OcrScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(16.dp)
-            ) {
+            ModernBottomBarContainer {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedButton(
+                    ModernSoftButton(
+                        text = if (uiState.sourceUri == null) "اختيار مستند/صورة" else "تغيير المستند",
+                        icon = Icons.Default.FileOpen,
                         onClick = { filePickerLauncher.launch(arrayOf("application/pdf", "image/*")) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !uiState.isProcessing
-                    ) {
-                        Icon(imageVector = Icons.Default.FileOpen, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (uiState.sourceUri == null) "اختيار مستند/صورة" else "تغيير المستند")
-                    }
+                        enabled = !uiState.isProcessing,
+                        modifier = Modifier.weight(1f)
+                    )
 
                     if (uiState.sourceUri != null) {
-                        Button(
+                        ModernGradientButton(
+                            text = "عدسة Google",
+                            icon = Icons.Default.TravelExplore,
                             onClick = { viewModel.openWithGoogleLens(context) },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary
-                            )
-                        ) {
-                            Icon(imageVector = Icons.Default.TravelExplore, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("عدسة Google")
-                        }
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
 
                 if (!uiState.extractedText.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
+                    Spacer(modifier = Modifier.height(10.dp))
+                    ModernGradientButton(
+                        text = "حفظ النص كملف TXT",
+                        icon = Icons.Default.Download,
                         onClick = {
                             val defaultName = "${uiState.sourceName ?: "ocr_result"}.txt"
                             saveTextPickerLauncher.launch(defaultName)
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(imageVector = Icons.Default.Download, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("حفظ النص كملف TXT")
-                    }
+                    )
                 }
             }
         },
@@ -188,7 +178,8 @@ fun OcrScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 ErrorBanner(
                     errorMessage = error,
-                    onRetry = { viewModel.dismissError() }
+                    onRetry = { viewModel.retryAnalysis() },
+                    onDismiss = { viewModel.dismissError() }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -352,7 +343,8 @@ fun OcrScreen(
         LoadingDialog(
             title = "جارٍ التعرف الضوئي وفهرسة النصوص…",
             message = uiState.progressMessage,
-            progressPercent = uiState.progressPercent
+            progressPercent = uiState.progressPercent,
+            onCancel = { viewModel.cancelProcessing() }
         )
     }
 
@@ -368,11 +360,21 @@ fun OcrScreen(
                 )
             },
             title = { Text("تم الحفظ بنجاح") },
-            text = { Text(msg) },
-            confirmButton = {
-                Button(onClick = { viewModel.dismissSaveSuccess() }) {
-                    Text("حسناً")
+            text = {
+                Column {
+                    Text(msg)
+                    OutputFileActionsRow(
+                        outputUri = uiState.savedTextUri,
+                        defaultMimeType = "text/plain"
+                    )
                 }
+            },
+            confirmButton = {
+                ModernGradientButton(
+                    text = "حسناً",
+                    onClick = { viewModel.dismissSaveSuccess() },
+                    height = 44.dp
+                )
             }
         )
     }
