@@ -47,6 +47,12 @@ import com.pdfcompress.CamScanner.presentation.merge.MergeScreen
 import com.pdfcompress.CamScanner.presentation.merge.MergeViewModel
 import com.pdfcompress.CamScanner.presentation.ocr.OcrScreen
 import com.pdfcompress.CamScanner.presentation.ocr.OcrViewModel
+import com.pdfcompress.CamScanner.presentation.idcard.IdCardScreen
+import com.pdfcompress.CamScanner.presentation.idcard.IdCardViewModel
+import com.pdfcompress.CamScanner.presentation.passport.PassportScreen
+import com.pdfcompress.CamScanner.presentation.passport.PassportViewModel
+import com.pdfcompress.CamScanner.presentation.backup.BackupRestoreScreen
+import com.pdfcompress.CamScanner.presentation.backup.BackupRestoreViewModel
 import com.pdfcompress.CamScanner.presentation.pdftoimages.PdfToImagesScreen
 import com.pdfcompress.CamScanner.presentation.pdftoimages.PdfToImagesViewModel
 import com.pdfcompress.CamScanner.presentation.repair.RepairScreen
@@ -210,7 +216,15 @@ fun AppNavHost(
                     onNavigateToExtractText = { navController.navigate(Screen.ExtractText.route) },
                     onNavigateToRepair = { navController.navigate(Screen.Repair.route) },
                     onNavigateToScanner = { navController.navigate(Screen.Scanner.route) },
-                    onNavigateToOcr = { navController.navigate(Screen.Ocr.route) }
+                    onNavigateToOcr = { navController.navigate(Screen.Ocr.route) },
+                    onNavigateToIdCard = { navController.navigate(Screen.IdCardScanner.route) },
+                    onNavigateToPassport = { navController.navigate(Screen.PassportScanner.route) },
+                    onNavigateToBackupRestore = { navController.navigate(Screen.BackupRestore.route) },
+                    onSelectLanguage = { lang ->
+                        coroutineScope.launch {
+                            container.updateSettingsUseCase.setLanguage(lang)
+                        }
+                    }
                 )
             }
 
@@ -369,6 +383,52 @@ fun AppNavHost(
                 )
                 OcrScreen(
                     viewModel = ocrViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.IdCardScanner.route) {
+                val context = LocalContext.current
+                val idCardViewModel: IdCardViewModel = viewModel(
+                    factory = IdCardViewModel.provideFactory(
+                        context = context,
+                        idCardUseCase = container.idCardUseCase,
+                        safHelper = container.safHelper,
+                        tempFileManager = container.tempFileManager
+                    )
+                )
+                IdCardScreen(
+                    viewModel = idCardViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.PassportScanner.route) {
+                val context = LocalContext.current
+                val passportViewModel: PassportViewModel = viewModel(
+                    factory = PassportViewModel.provideFactory(
+                        context = context,
+                        passportMrzUseCase = container.passportMrzUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                PassportScreen(
+                    viewModel = passportViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.BackupRestore.route) {
+                val context = LocalContext.current
+                val backupRestoreViewModel: BackupRestoreViewModel = viewModel(
+                    factory = BackupRestoreViewModel.provideFactory(
+                        context = context,
+                        backupRestoreUseCase = container.backupRestoreUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                BackupRestoreScreen(
+                    viewModel = backupRestoreViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

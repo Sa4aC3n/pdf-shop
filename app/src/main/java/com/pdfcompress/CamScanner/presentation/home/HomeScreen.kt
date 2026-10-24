@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MergeType
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
@@ -42,17 +43,16 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.WaterDamage
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -66,7 +66,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -79,15 +78,16 @@ import androidx.compose.ui.unit.sp
 import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
 import com.pdfcompress.CamScanner.core.ui.components.ModernSoftButton
 import com.pdfcompress.CamScanner.domain.model.AppColorTheme
+import com.pdfcompress.CamScanner.domain.model.AppLanguage
 import com.pdfcompress.CamScanner.domain.model.AppTheme
 import com.pdfcompress.CamScanner.domain.model.UserSettings
 
-enum class ToolCategory(val titleAr: String) {
-    ALL("الكل"),
-    SCAN_OCR("المسح والـ OCR"),
-    ORGANIZE("دمج وتقسيم"),
-    CONVERT_COMPRESS("ضغط وتحويل"),
-    PROTECT_REPAIR("حماية وإصلاح")
+enum class ToolCategory(val titleAr: String, val titleEn: String) {
+    ALL("الكل", "All"),
+    SCAN_OCR("المسح والـ OCR", "Scan & OCR"),
+    ORGANIZE("دمج وتقسيم", "Organize"),
+    CONVERT_COMPRESS("ضغط وتحويل", "Convert & Compress"),
+    PROTECT_REPAIR("حماية وإصلاح", "Protect & Repair")
 }
 
 data class ToolDefinition(
@@ -119,6 +119,10 @@ fun HomeScreen(
     onNavigateToRepair: () -> Unit,
     onNavigateToScanner: () -> Unit,
     onNavigateToOcr: () -> Unit,
+    onNavigateToIdCard: () -> Unit = {},
+    onNavigateToPassport: () -> Unit = {},
+    onNavigateToBackupRestore: () -> Unit = {},
+    onSelectLanguage: (AppLanguage) -> Unit = {},
     currentSettings: UserSettings = UserSettings(),
     onSelectColorTheme: (AppColorTheme) -> Unit = {},
     onSelectThemeMode: (AppTheme) -> Unit = {},
@@ -126,11 +130,44 @@ fun HomeScreen(
 ) {
     var selectedCategory by remember { mutableStateOf(ToolCategory.ALL) }
     var showAppearanceSheet by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
 
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     val activeTools = remember {
         listOf(
+            ToolDefinition(
+                id = "id_card_scanner",
+                title = "سحب البطاقة الشخصية",
+                description = "مسح وتصوير الوجه والظهر للبطاقة الوطنية مع حفظ كل وجه أو دمجها في صفحة A4",
+                icon = Icons.Default.Badge,
+                isAvailable = true,
+                badgeText = "جديد ومكتمل",
+                category = ToolCategory.SCAN_OCR,
+                accentLightColor = Color(0xFF059669),
+                accentDarkColor = Color(0xFF34D399),
+                cardBgLight = Color(0xFFECFDF5),
+                cardBgDark = Color(0xFF132820),
+                cardBorderLight = Color(0xFFA7F3D0),
+                cardBorderDark = Color(0xFF1E4635),
+                route = "id_card_scanner"
+            ),
+            ToolDefinition(
+                id = "passport_scanner",
+                title = "ماسح جواز السفر (MRZ)",
+                description = "مسح وقراءة الباركود ورمز MRZ في أسفل الجواز واستخراج البيانات والتحقق من الصلاحية",
+                icon = Icons.Default.QrCodeScanner,
+                isAvailable = true,
+                badgeText = "جديد ومكتمل",
+                category = ToolCategory.SCAN_OCR,
+                accentLightColor = Color(0xFF0284C7),
+                accentDarkColor = Color(0xFF38BDF8),
+                cardBgLight = Color(0xFFF0F9FF),
+                cardBgDark = Color(0xFF142433),
+                cardBorderLight = Color(0xFFBAE6FD),
+                cardBorderDark = Color(0xFF213F59),
+                route = "passport_scanner"
+            ),
             ToolDefinition(
                 id = "scanner",
                 title = "ماسح المستندات بالكاميرا",
@@ -162,6 +199,22 @@ fun HomeScreen(
                 cardBorderLight = Color(0xFFBFDBFE),
                 cardBorderDark = Color(0xFF233B5E),
                 route = "ocr"
+            ),
+            ToolDefinition(
+                id = "backup_restore",
+                title = "النسخ الاحتياطي والأرشيف",
+                description = "حفظ كل المستمسكات والوثائق في ملف أرشيف مشفر بـ AES-256 أو استعادتها",
+                icon = Icons.Default.Security,
+                isAvailable = true,
+                badgeText = "مشفر AES-256",
+                category = ToolCategory.PROTECT_REPAIR,
+                accentLightColor = Color(0xFF7C3AED),
+                accentDarkColor = Color(0xFFA78BFA),
+                cardBgLight = Color(0xFFF8F5FF),
+                cardBgDark = Color(0xFF221933),
+                cardBorderLight = Color(0xFFDDD6FE),
+                cardBorderDark = Color(0xFF3B2859),
+                route = "backup_restore"
             ),
             ToolDefinition(
                 id = "merge",
@@ -311,11 +364,12 @@ fun HomeScreen(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 1. Top Header Bar (matching Image 3 header + quick Theme Color switcher)
+        // 1. Top Header Bar (With Left Globe Icon + Quick Theme Switchers)
         item(span = { GridItemSpan(maxLineSpan) }) {
             TopBrandBar(
                 isDarkTheme = isDarkTheme,
                 onOpenAppearanceDialog = { showAppearanceSheet = true },
+                onOpenLanguageDialog = { showLanguageDialog = true },
                 onToggleDarkLight = {
                     val nextTheme = if (isDarkTheme) AppTheme.LIGHT else AppTheme.DARK
                     onSelectThemeMode(nextTheme)
@@ -323,7 +377,7 @@ fun HomeScreen(
             )
         }
 
-        // 2. Hero Action Section + Quick Scanner CTA (matching Image 3 Hero + Image 2 Privacy Banner)
+        // 2. Hero Action Section + Quick Scanner CTA
         item(span = { GridItemSpan(maxLineSpan) }) {
             HeroBannerSection(
                 onQuickScanClick = onNavigateToScanner,
@@ -331,7 +385,7 @@ fun HomeScreen(
             )
         }
 
-        // 3. 100% Local Privacy Guarantee Banner (matching Image 1 & Image 2)
+        // 3. 100% Local Privacy Guarantee Banner
         item(span = { GridItemSpan(maxLineSpan) }) {
             PrivacyCard()
         }
@@ -346,7 +400,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "الأدوات المتاحة للعمل الفعلي",
+                        text = "الأدوات والمستمسكات المتاحة",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -398,7 +452,7 @@ fun HomeScreen(
             }
         }
 
-        // 5. 2-Column Responsive Grid of Rich Tool Cards (combining Image 1/2 badges + Image 3 floating action circle & watermark icon)
+        // 5. Grid of Tool Cards
         items(filteredTools, key = { it.id }) { tool ->
             ToolGridCard(
                 tool = tool,
@@ -407,6 +461,9 @@ fun HomeScreen(
                     when (tool.id) {
                         "scanner" -> onNavigateToScanner()
                         "ocr" -> onNavigateToOcr()
+                        "id_card_scanner" -> onNavigateToIdCard()
+                        "passport_scanner" -> onNavigateToPassport()
+                        "backup_restore" -> onNavigateToBackupRestore()
                         "merge" -> onNavigateToMerge()
                         "images_to_pdf" -> onNavigateToImagesToPdf()
                         "split" -> onNavigateToSplit()
@@ -429,13 +486,25 @@ fun HomeScreen(
             onDismiss = { showAppearanceSheet = false }
         )
     }
+
+    if (showLanguageDialog) {
+        LanguageSelectionDialog(
+            currentLanguage = currentSettings.language,
+            onSelectLanguage = { lang ->
+                onSelectLanguage(lang)
+                showLanguageDialog = false
+            },
+            onDismiss = { showLanguageDialog = false }
+        )
+    }
 }
 
 @Composable
 private fun TopBrandBar(
     isDarkTheme: Boolean,
     onOpenAppearanceDialog: () -> Unit,
-    onToggleDarkLight: () -> Unit
+    onToggleDarkLight: () -> Unit,
+    onOpenLanguageDialog: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -444,6 +513,28 @@ private fun TopBrandBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Globe / Language Button at Top-Left
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+            modifier = Modifier
+                .size(42.dp)
+                .testTag("home_language_button"),
+            onClick = onOpenLanguageDialog
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.Public,
+                    contentDescription = "اختيار اللغة / Language",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
@@ -469,10 +560,10 @@ private fun TopBrandBar(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
-                    text = "ClearScan Pro: PDF Scanner",
+                    text = "CamScanner: PDF Scanner",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
@@ -572,20 +663,20 @@ private fun HeroBannerSection(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "إدارة ومسح ملفاتك بذكاء",
+                    text = "إدارة ومسح المستمسكات والملفات",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "بأعلى درجات الأمان والاحترافية",
+                    text = "بأعلى درجات الأمان والخصوصية المحلية",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "امسح الوثائق بالكاميرا، استخرج النصوص، وادمج أو اضغط ملفات PDF في ثوانٍ",
+                    text = "سحب البطاقات، فحص الجوازات MRZ، مسح بالكاميرا، ودمج الوثائق في ثوانٍ دون إنترنت",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -597,7 +688,7 @@ private fun HeroBannerSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ModernGradientButton(
-                        text = "مسح مستند الآن",
+                        text = "مسح وثيقة الآن",
                         icon = Icons.Default.CameraAlt,
                         onClick = onQuickScanClick,
                         modifier = Modifier
@@ -654,14 +745,14 @@ fun PrivacyCard() {
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "خصوصية محلية 100%",
+                    text = "خصوصية محلية 100% دون إنترنت",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "جميع العمليات تجري على جهازك مباشرة دون اتصال بالإنترنت أو رفع لأي خادم.",
+                    text = "جميع العمليات تجري على معالج هاتفك مباشرة دون اتصال بالإنترنت أو إرسال بياناتك لأي جهة.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 18.sp
@@ -693,7 +784,6 @@ fun ToolGridCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Subtle large background watermark icon in bottom-end (inspired by Image 3)
             Icon(
                 imageVector = tool.icon,
                 contentDescription = null,
@@ -711,7 +801,6 @@ fun ToolGridCard(
                     .padding(14.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top Row: Tool Icon Badge + "جاهز ومكتمل" Pill (matching Images 1 & 2)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -746,7 +835,6 @@ fun ToolGridCard(
                     }
                 }
 
-                // Middle: Title & Description
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = tool.title,
@@ -767,7 +855,6 @@ fun ToolGridCard(
                     )
                 }
 
-                // Bottom Row: PDF Badge + Circular Floating Action Button with white border (matching Image 3)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -810,6 +897,95 @@ fun ToolGridCard(
             }
         }
     }
+}
+
+@Composable
+private fun LanguageSelectionDialog(
+    currentLanguage: AppLanguage,
+    onSelectLanguage: (AppLanguage) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Public,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text("لغة التطبيق / App Language", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (currentLanguage == AppLanguage.ARABIC) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(
+                        1.dp,
+                        if (currentLanguage == AppLanguage.ARABIC) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelectLanguage(AppLanguage.ARABIC) }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("🇸🇦", fontSize = 24.sp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("العربية", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Arabic (RTL)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (currentLanguage == AppLanguage.ARABIC) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (currentLanguage == AppLanguage.ENGLISH) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(
+                        1.dp,
+                        if (currentLanguage == AppLanguage.ENGLISH) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelectLanguage(AppLanguage.ENGLISH) }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("🇺🇸", fontSize = 24.sp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("English", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text("الإنجليزية (LTR)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (currentLanguage == AppLanguage.ENGLISH) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("إغلاق / Close")
+            }
+        }
+    )
 }
 
 @Composable
@@ -910,7 +1086,7 @@ private fun QuickAppearanceDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val modes = listOf(
-                        AppTheme.LIGHT to "فاتح",
+                        AppTheme.LIGHT to "فاتح (افتراضي)",
                         AppTheme.DARK to "داكن",
                         AppTheme.SYSTEM to "تلقائي"
                     )

@@ -19,6 +19,14 @@ enum class AppColorTheme(
     val primaryContainerDarkLong: Long,
     val secondaryColorLong: Long
 ) {
+    EMERALD_TEAL(
+        titleAr = "أخضر زمردي (افتراضي)",
+        titleEn = "Emerald Green (Default)",
+        primaryColorLong = 0xFF059669L,
+        primaryContainerLightLong = 0xFFECFDF5L,
+        primaryContainerDarkLong = 0xFF064E3BL,
+        secondaryColorLong = 0xFF0D9488L
+    ),
     CRIMSON_RED(
         titleAr = "أحمر ياقوتي (PDF)",
         titleEn = "Crimson Red",
@@ -34,14 +42,6 @@ enum class AppColorTheme(
         primaryContainerLightLong = 0xFFE3F2FD,
         primaryContainerDarkLong = 0xFF0D2B4E,
         secondaryColorLong = 0xFF0277BDL
-    ),
-    EMERALD_TEAL(
-        titleAr = "أخضر زمردي",
-        titleEn = "Emerald Teal",
-        primaryColorLong = 0xFF00796BL,
-        primaryContainerLightLong = 0xFFE0F2F1,
-        primaryContainerDarkLong = 0xFF003831,
-        secondaryColorLong = 0xFF00897BL
     ),
     ROYAL_PURPLE(
         titleAr = "بنفسجي عصري",
@@ -70,8 +70,8 @@ enum class AppColorTheme(
 }
 
 data class UserSettings(
-    val theme: AppTheme = AppTheme.SYSTEM,
-    val colorTheme: AppColorTheme = AppColorTheme.CRIMSON_RED,
+    val theme: AppTheme = AppTheme.LIGHT,
+    val colorTheme: AppColorTheme = AppColorTheme.EMERALD_TEAL,
     val language: AppLanguage = AppLanguage.ARABIC,
     val isAppLockEnabled: Boolean = false
 )

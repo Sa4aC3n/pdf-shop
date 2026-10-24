@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.data.db.dao
+package com.pdfcompress.CamScanner.data.db.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
@@ -12,6 +12,9 @@ interface OperationDao {
 
     @Query("SELECT * FROM operations ORDER BY completedAt DESC")
     fun getAllOperations(): Flow<List<OperationEntity>>
+
+    @Query("SELECT * FROM operations ORDER BY completedAt DESC")
+    suspend fun getOperationsList(): List<OperationEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOperation(operation: OperationEntity): Long

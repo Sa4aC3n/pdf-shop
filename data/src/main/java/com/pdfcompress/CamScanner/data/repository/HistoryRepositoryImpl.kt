@@ -1,4 +1,4 @@
-﻿package com.pdfcompress.CamScanner.data.repository
+package com.pdfcompress.CamScanner.data.repository
 
 import com.pdfcompress.CamScanner.data.db.dao.OperationDao
 import com.pdfcompress.CamScanner.data.db.entity.OperationEntity
@@ -15,6 +15,10 @@ class HistoryRepositoryImpl(
         return operationDao.getAllOperations().map { entities ->
             entities.map { it.toDomain() }
         }
+    }
+
+    override suspend fun getAllHistory(): List<OperationRecord> {
+        return operationDao.getOperationsList().map { it.toDomain() }
     }
 
     override suspend fun recordOperation(operation: OperationRecord): Long {

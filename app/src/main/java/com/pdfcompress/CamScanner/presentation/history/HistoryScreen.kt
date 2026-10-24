@@ -29,6 +29,9 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.WaterDamage
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -172,6 +175,9 @@ fun HistoryItemCard(item: HistoryItemUi) {
         ToolType.REPAIR -> "إصلاح PDF" to Icons.Default.Build
         ToolType.SCANNER -> "مسح مستند" to Icons.Default.CameraAlt
         ToolType.OCR -> "تعرف ضوئي OCR" to Icons.Default.FindInPage
+        ToolType.ID_CARD -> "سحب البطاقة" to Icons.Default.Badge
+        ToolType.PASSPORT_MRZ -> "جواز السفر" to Icons.Default.QrCodeScanner
+        ToolType.BACKUP_RESTORE -> "نسخ احتياطي" to Icons.Default.Security
     }
 
     Card(

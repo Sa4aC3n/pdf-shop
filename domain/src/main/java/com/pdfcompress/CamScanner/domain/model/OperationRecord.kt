@@ -10,7 +10,10 @@ enum class ToolType {
     PDF_TO_IMAGES,
     EXTRACT_TEXT,
     OCR,
-    REPAIR
+    REPAIR,
+    ID_CARD,
+    PASSPORT_MRZ,
+    BACKUP_RESTORE
 }
 
 enum class OperationStatus {

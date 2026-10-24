@@ -34,6 +34,9 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import com.pdfcompress.CamScanner.domain.model.IdCardLayoutMode
+import com.pdfcompress.CamScanner.domain.model.IdCardResult
+import com.pdfcompress.CamScanner.domain.model.PassportMrzData
 import com.pdfcompress.CamScanner.domain.model.ExportImagesResult
 import com.pdfcompress.CamScanner.domain.model.RepairReport
 import com.pdfcompress.CamScanner.domain.model.TextExtractionResult
@@ -993,6 +996,425 @@ class PdfBoxDocumentEngine(
                 pageCount = 1
             )
         )
+    }
+
+
+    override suspend fun createIdCardPdf(
+        frontCardUri: Uri?,
+        backCardUri: Uri?,
+        layoutMode: IdCardLayoutMode,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<IdCardResult> = withContext(dispatchers.io) {
+        try {
+            onProgress(EngineProgress(10, "تحضير وقراءة صور البطاقة الشخصية…"))
+
+            val frontBmp = frontCardUri?.let { uri ->
+                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            }
+            val backBmp = backCardUri?.let { uri ->
+                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            }
+
+            if (frontBmp == null && backBmp == null) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر قراءة صور البطاقة"))
+            }
+
+            onProgress(EngineProgress(35, "تجهيز وتنسيق صفحة الطباعة الرسمية…"))
+            val tempPdf = tempFileManager.createTempPdfFile("id_card_out")
+            val pdfDoc = android.graphics.pdf.PdfDocument()
+            var pageCount = 0
+
+            when (layoutMode) {
+                IdCardLayoutMode.A4_VERTICAL -> {
+                    // Standard A4 portrait: 595 x 842 points
+                    val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
+                    val page = pdfDoc.startPage(pageInfo)
+                    val canvas = page.canvas
+
+                    val bgPaint = Paint().apply { color = Color.WHITE }
+                    canvas.drawRect(0f, 0f, 595f, 842f, bgPaint)
+
+                    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                    val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.rgb(100, 116, 139)
+                        textSize = 11f
+                        textAlign = Paint.Align.CENTER
+                    }
+                    val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.rgb(203, 213, 225)
+                        style = Paint.Style.STROKE
+                        strokeWidth = 1.5f
+                    }
+
+                    val cardW = 390f
+                    val cardH = 246f
+                    val cardX = (595f - cardW) / 2f
+
+                    if (frontBmp != null) {
+                        val frontY = 100f
+                        canvas.drawText("الوجه الأمامي للبطاقة (Front Side)", 595f / 2f, frontY - 12f, labelPaint)
+                        val dstRect = android.graphics.RectF(cardX, frontY, cardX + cardW, frontY + cardH)
+                        canvas.drawBitmap(frontBmp, null, dstRect, paint)
+                        canvas.drawRoundRect(dstRect, 8f, 8f, borderPaint)
+                    }
+
+                    if (backBmp != null) {
+                        val backY = 460f
+                        canvas.drawText("الوجه الخلفي للبطاقة (Back Side)", 595f / 2f, backY - 12f, labelPaint)
+                        val dstRect = android.graphics.RectF(cardX, backY, cardX + cardW, backY + cardH)
+                        canvas.drawBitmap(backBmp, null, dstRect, paint)
+                        canvas.drawRoundRect(dstRect, 8f, 8f, borderPaint)
+                    }
+
+                    val footerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.rgb(148, 163, 184)
+                        textSize = 9f
+                        textAlign = Paint.Align.CENTER
+                    }
+                    canvas.drawText("تم المسح والدمج محلياً باستخدام PDF Shop Scanner", 595f / 2f, 815f, footerPaint)
+
+                    pdfDoc.finishPage(page)
+                    pageCount = 1
+                }
+                IdCardLayoutMode.SIDE_BY_SIDE -> {
+                    // A4 Landscape: 842 x 595 points
+                    val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(842, 595, 1).create()
+                    val page = pdfDoc.startPage(pageInfo)
+                    val canvas = page.canvas
+                    canvas.drawColor(Color.WHITE)
+
+                    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                    val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.rgb(203, 213, 225)
+                        style = Paint.Style.STROKE
+                        strokeWidth = 1.5f
+                    }
+                    val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.rgb(100, 116, 139)
+                        textSize = 11f
+                        textAlign = Paint.Align.CENTER
+                    }
+
+                    val cardW = 360f
+                    val cardH = 227f
+                    val cardY = (595f - cardH) / 2f
+
+                    if (frontBmp != null) {
+                        val frontX = 40f
+                        canvas.drawText("الوجه الأمامي (Front)", frontX + cardW / 2f, cardY - 12f, labelPaint)
+                        val dstRect = android.graphics.RectF(frontX, cardY, frontX + cardW, cardY + cardH)
+                        canvas.drawBitmap(frontBmp, null, dstRect, paint)
+                        canvas.drawRoundRect(dstRect, 8f, 8f, borderPaint)
+                    }
+
+                    if (backBmp != null) {
+                        val backX = 842f - cardW - 40f
+                        canvas.drawText("الوجه الخلفي (Back)", backX + cardW / 2f, cardY - 12f, labelPaint)
+                        val dstRect = android.graphics.RectF(backX, cardY, backX + cardW, cardY + cardH)
+                        canvas.drawBitmap(backBmp, null, dstRect, paint)
+                        canvas.drawRoundRect(dstRect, 8f, 8f, borderPaint)
+                    }
+
+                    pdfDoc.finishPage(page)
+                    pageCount = 1
+                }
+                IdCardLayoutMode.TWO_PAGES -> {
+                    var pageNum = 1
+                    val bmps = listOfNotNull(frontBmp, backBmp)
+                    for (bmp in bmps) {
+                        val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, pageNum).create()
+                        val page = pdfDoc.startPage(pageInfo)
+                        val canvas = page.canvas
+                        canvas.drawColor(Color.WHITE)
+
+                        val cardW = 460f
+                        val cardH = 290f
+                        val cardX = (595f - cardW) / 2f
+                        val cardY = (842f - cardH) / 2f
+                        val dstRect = android.graphics.RectF(cardX, cardY, cardX + cardW, cardY + cardH)
+                        canvas.drawBitmap(bmp, null, dstRect, Paint(Paint.ANTI_ALIAS_FLAG))
+
+                        pdfDoc.finishPage(page)
+                        pageNum++
+                    }
+                    pageCount = bmps.size
+                }
+                IdCardLayoutMode.FRONT_ONLY -> {
+                    val bmp = frontBmp ?: backBmp!!
+                    val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
+                    val page = pdfDoc.startPage(pageInfo)
+                    val canvas = page.canvas
+                    canvas.drawColor(Color.WHITE)
+
+                    val cardW = 460f
+                    val cardH = 290f
+                    val cardX = (595f - cardW) / 2f
+                    val cardY = (842f - cardH) / 2f
+                    val dstRect = android.graphics.RectF(cardX, cardY, cardX + cardW, cardY + cardH)
+                    canvas.drawBitmap(bmp, null, dstRect, Paint(Paint.ANTI_ALIAS_FLAG))
+
+                    pdfDoc.finishPage(page)
+                    pageCount = 1
+                }
+                IdCardLayoutMode.BACK_ONLY -> {
+                    val bmp = backBmp ?: frontBmp!!
+                    val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
+                    val page = pdfDoc.startPage(pageInfo)
+                    val canvas = page.canvas
+                    canvas.drawColor(Color.WHITE)
+
+                    val cardW = 460f
+                    val cardH = 290f
+                    val cardX = (595f - cardW) / 2f
+                    val cardY = (842f - cardH) / 2f
+                    val dstRect = android.graphics.RectF(cardX, cardY, cardX + cardW, cardY + cardH)
+                    canvas.drawBitmap(bmp, null, dstRect, Paint(Paint.ANTI_ALIAS_FLAG))
+
+                    pdfDoc.finishPage(page)
+                    pageCount = 1
+                }
+            }
+
+            onProgress(EngineProgress(85, "حفظ وتصدير ملف PDF النهائي…"))
+            FileOutputStream(tempPdf).use { out ->
+                pdfDoc.writeTo(out)
+            }
+            pdfDoc.close()
+
+            val success = tempFileManager.copyFileToUri(tempPdf, destinationUri)
+            val outputSize = tempPdf.length()
+            tempFileManager.deleteFileSafely(tempPdf)
+
+            frontBmp?.recycle()
+            backBmp?.recycle()
+
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر نسخ المستند النهائي إلى مجلد الوجهة"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل تصدير البطاقة الشخصية كـ PDF"))
+            AppResult.Success(IdCardResult(outputSize, pageCount, layoutMode))
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في إنشاء مستند البطاقة الشخصية"))
+        }
+    }
+
+    override suspend fun createIdCardImage(
+        frontCardUri: Uri?,
+        backCardUri: Uri?,
+        layoutMode: IdCardLayoutMode,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        try {
+            onProgress(EngineProgress(15, "قراءة صور البطاقة لدمجها كصورة…"))
+            val frontBmp = frontCardUri?.let { uri ->
+                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            }
+            val backBmp = backCardUri?.let { uri ->
+                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            }
+
+            if (frontBmp == null && backBmp == null) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر قراءة صور البطاقة"))
+            }
+
+            onProgress(EngineProgress(45, "دمج ومعالجة الصورة المجمعة…"))
+            val width = maxOf(frontBmp?.width ?: 0, backBmp?.width ?: 0)
+            val frontH = frontBmp?.height ?: 0
+            val backH = backBmp?.height ?: 0
+            val spacing = 40
+            val height = if (frontBmp != null && backBmp != null) frontH + backH + spacing else frontH + backH
+
+            val combined = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(combined)
+            canvas.drawColor(Color.WHITE)
+
+            var curY = 0f
+            if (frontBmp != null) {
+                val x = (width - frontBmp.width) / 2f
+                canvas.drawBitmap(frontBmp, x, curY, null)
+                curY += frontBmp.height + spacing
+            }
+            if (backBmp != null) {
+                val x = (width - backBmp.width) / 2f
+                canvas.drawBitmap(backBmp, x, curY, null)
+            }
+
+            onProgress(EngineProgress(80, "ضغط وحفظ ملف الصورة…"))
+            val tempImg = tempFileManager.createTempPdfFile("id_card_img.jpg")
+            FileOutputStream(tempImg).use { out ->
+                combined.compress(Bitmap.CompressFormat.JPEG, 92, out)
+            }
+            combined.recycle()
+            frontBmp?.recycle()
+            backBmp?.recycle()
+
+            val success = tempFileManager.copyFileToUri(tempImg, destinationUri)
+            val size = tempImg.length()
+            tempFileManager.deleteFileSafely(tempImg)
+
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ الصورة في المسار المحدد"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل حفظ صورة البطاقة المدمجة بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في حفظ صورة البطاقة"))
+        }
+    }
+
+    override suspend fun generatePassportReportPdf(
+        photoUri: Uri?,
+        mrzData: PassportMrzData,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        try {
+            onProgress(EngineProgress(15, "إعداد تقرير فحص وتدقيق جواز السفر…"))
+            val photoBmp = photoUri?.let { uri ->
+                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            }
+
+            onProgress(EngineProgress(40, "تنسيق وثيقة التحقق الرسمية (PDF)…"))
+            val tempPdf = tempFileManager.createTempPdfFile("passport_report")
+            val pdfDoc = android.graphics.pdf.PdfDocument()
+            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
+            val page = pdfDoc.startPage(pageInfo)
+            val canvas = page.canvas
+            canvas.drawColor(Color.WHITE)
+
+            // Header Banner
+            val headerPaint = Paint().apply { color = Color.rgb(5, 150, 105) } // Emerald Green
+            canvas.drawRect(0f, 0f, 595f, 60f, headerPaint)
+
+            val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText("تقرير فحص جواز السفر الإلكتروني (ICAO 9303)", 595f / 2f, 38f, titlePaint)
+
+            var curY = 85f
+
+            // Passport photo
+            if (photoBmp != null) {
+                val photoW = 280f
+                val photoH = (photoW * photoBmp.height / photoBmp.width).coerceAtMost(160f)
+                val photoX = (595f - photoW) / 2f
+                val dstRect = android.graphics.RectF(photoX, curY, photoX + photoW, curY + photoH)
+                canvas.drawBitmap(photoBmp, null, dstRect, Paint(Paint.ANTI_ALIAS_FLAG))
+                val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.rgb(203, 213, 225)
+                    style = Paint.Style.STROKE
+                    strokeWidth = 1f
+                }
+                canvas.drawRoundRect(dstRect, 6f, 6f, borderPaint)
+                curY += photoH + 20f
+                photoBmp.recycle()
+            }
+
+            // Table of fields
+            val sectionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.rgb(30, 41, 59)
+                textSize = 14f
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            canvas.drawText("البيانات الشخصية والوثائقية المستخرجة:", 40f, curY, sectionPaint)
+            curY += 15f
+
+            val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.rgb(100, 116, 139)
+                textSize = 11f
+            }
+            val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.rgb(15, 23, 42)
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            val linePaint = Paint().apply {
+                color = Color.rgb(226, 232, 240)
+                strokeWidth = 1f
+            }
+
+            val fields = listOf(
+                Pair("الاسم الكامل / Full Name", mrzData.fullName),
+                Pair("رقم الجواز / Passport No.", "${mrzData.documentNumber}  " + if (mrzData.documentNumberCheckOk) "[صحيح ✓]" else "[فحص التدقيق غير متطابق ✗]"),
+                Pair("الدولة المصدرة / Issuing State", mrzData.countryName),
+                Pair("الجنسية / Nationality", mrzData.nationalityName),
+                Pair("تاريخ الميلاد / Date of Birth", mrzData.dateOfBirth),
+                Pair("النوع / Gender", mrzData.sexLabel),
+                Pair("تاريخ الانتهاء / Expiry Date", "${mrzData.expiryDate}  " + if (mrzData.isExpired) "[منتهي الصلاحية ⚠️]" else "[ساري المفعول ✓]"),
+                Pair("نوع الوثيقة / Document Type", mrzData.documentType),
+                Pair("حالة فحص ICAO 9303 الكلي", if (mrzData.isCompleteValid) "مطابق وموثوق بالكامل (100% Valid) ✓" else "تمت القراءة مع تنبيهات في الأرقام الرقابية")
+            )
+
+            for (field in fields) {
+                curY += 18f
+                canvas.drawText(field.first, 45f, curY, labelPaint)
+                canvas.drawText(field.second, 220f, curY, valuePaint)
+                curY += 8f
+                canvas.drawLine(40f, curY, 555f, curY, linePaint)
+            }
+
+            // MRZ Raw Box
+            curY += 25f
+            canvas.drawText("الشيفرة المقروءة آلياً (Machine Readable Zone - MRZ):", 40f, curY, sectionPaint)
+            curY += 12f
+
+            val mrzBoxPaint = Paint().apply { color = Color.rgb(241, 245, 249) }
+            val mrzBorder = Paint().apply {
+                color = Color.rgb(203, 213, 225)
+                style = Paint.Style.STROKE
+                strokeWidth = 1f
+            }
+            val mrzRect = android.graphics.RectF(40f, curY, 555f, curY + 60f)
+            canvas.drawRoundRect(mrzRect, 8f, 8f, mrzBoxPaint)
+            canvas.drawRoundRect(mrzRect, 8f, 8f, mrzBorder)
+
+            val mrzFontPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.rgb(30, 41, 59)
+                textSize = 11f
+                typeface = Typeface.MONOSPACE
+            }
+            val mrzLines = mrzData.rawMrz.lines()
+            var mrzTextY = curY + 24f
+            for (line in mrzLines) {
+                canvas.drawText(line, 55f, mrzTextY, mrzFontPaint)
+                mrzTextY += 18f
+            }
+
+            val footerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.rgb(148, 163, 184)
+                textSize = 9f
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText("تقرير إلكتروني غير متصل بالإنترنت صادر من تطبيق PDF Shop Scanner", 595f / 2f, 815f, footerPaint)
+
+            pdfDoc.finishPage(page)
+
+            onProgress(EngineProgress(85, "كتابة ملف التقرير إلى الذاكرة…"))
+            FileOutputStream(tempPdf).use { out ->
+                pdfDoc.writeTo(out)
+            }
+            pdfDoc.close()
+
+            val success = tempFileManager.copyFileToUri(tempPdf, destinationUri)
+            val size = tempPdf.length()
+            tempFileManager.deleteFileSafely(tempPdf)
+
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ التقرير في المجلد المحدد"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل إنشاء تقرير جواز السفر بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في إنشاء تقرير جواز السفر"))
+        }
     }
 
     override suspend fun getPageCount(sourceUri: Uri): Int = withContext(dispatchers.io) {

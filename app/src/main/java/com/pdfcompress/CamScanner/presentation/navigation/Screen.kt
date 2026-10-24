@@ -14,4 +14,7 @@ sealed class Screen(val route: String) {
     data object Repair : Screen("repair")
     data object Scanner : Screen("scanner")
     data object Ocr : Screen("ocr")
+    data object IdCardScanner : Screen("id_card_scanner")
+    data object PassportScanner : Screen("passport_scanner")
+    data object BackupRestore : Screen("backup_restore")
 }

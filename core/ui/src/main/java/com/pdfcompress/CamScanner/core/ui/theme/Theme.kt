@@ -9,11 +9,11 @@ import androidx.compose.ui.graphics.Color
 
 @Composable
 fun PDFShopTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    primaryColorLong: Long = 0xFFD32F2FL,
-    primaryContainerLightLong: Long = 0xFFFFEBEE,
-    primaryContainerDarkLong: Long = 0xFF4A1215,
-    secondaryColorLong: Long = 0xFFB71C1CL,
+    darkTheme: Boolean = false,
+    primaryColorLong: Long = 0xFF059669L,
+    primaryContainerLightLong: Long = 0xFFECFDF5L,
+    primaryContainerDarkLong: Long = 0xFF064E3BL,
+    secondaryColorLong: Long = 0xFF0D9488L,
     content: @Composable () -> Unit
 ) {
     val primaryColor = Color(primaryColorLong)

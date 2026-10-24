@@ -6,6 +6,7 @@ import com.pdfcompress.CamScanner.core.common.dispatcher.DispatcherProvider
 import com.pdfcompress.CamScanner.core.files.SafFileHelper
 import com.pdfcompress.CamScanner.core.files.TempFileManager
 import com.pdfcompress.CamScanner.data.db.AppDatabase
+import com.pdfcompress.CamScanner.data.engine.BackupArchiveEngineImpl
 import com.pdfcompress.CamScanner.data.engine.PdfBoxDocumentEngine
 import com.pdfcompress.CamScanner.data.repository.HistoryRepositoryImpl
 import com.pdfcompress.CamScanner.data.repository.SettingsRepositoryImpl
@@ -13,14 +14,18 @@ import com.pdfcompress.CamScanner.domain.engine.PdfDocumentEngine
 import com.pdfcompress.CamScanner.domain.repository.HistoryRepository
 import com.pdfcompress.CamScanner.domain.repository.SettingsRepository
 import com.pdfcompress.CamScanner.domain.usecase.AddWatermarkUseCase
+import com.pdfcompress.CamScanner.domain.usecase.BackupArchiveEngine
+import com.pdfcompress.CamScanner.domain.usecase.BackupRestoreUseCase
 import com.pdfcompress.CamScanner.domain.usecase.ClearHistoryUseCase
 import com.pdfcompress.CamScanner.domain.usecase.CompressPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.ExtractTextUseCase
 import com.pdfcompress.CamScanner.domain.usecase.GetHistoryUseCase
 import com.pdfcompress.CamScanner.domain.usecase.GetSettingsUseCase
+import com.pdfcompress.CamScanner.domain.usecase.IdCardUseCase
 import com.pdfcompress.CamScanner.domain.usecase.ImagesToPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.MergePdfsUseCase
 import com.pdfcompress.CamScanner.domain.usecase.OcrUseCase
+import com.pdfcompress.CamScanner.domain.usecase.PassportMrzUseCase
 import com.pdfcompress.CamScanner.domain.usecase.PdfToImagesUseCase
 import com.pdfcompress.CamScanner.domain.usecase.RepairPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.ScanDocumentUseCase
@@ -42,6 +47,10 @@ class AppContainer(private val context: Context) {
             tempFileManager = tempFileManager,
             dispatchers = dispatchers
         )
+    }
+
+    val backupArchiveEngine: BackupArchiveEngine by lazy {
+        BackupArchiveEngineImpl(context, safHelper, tempFileManager, dispatchers)
     }
 
     val historyRepository: HistoryRepository by lazy {
@@ -90,6 +99,18 @@ class AppContainer(private val context: Context) {
 
     val ocrUseCase: OcrUseCase by lazy {
         OcrUseCase(pdfEngine, historyRepository)
+    }
+
+    val idCardUseCase: IdCardUseCase by lazy {
+        IdCardUseCase(pdfEngine, historyRepository)
+    }
+
+    val passportMrzUseCase: PassportMrzUseCase by lazy {
+        PassportMrzUseCase(pdfEngine, historyRepository)
+    }
+
+    val backupRestoreUseCase: BackupRestoreUseCase by lazy {
+        BackupRestoreUseCase(backupArchiveEngine, historyRepository)
     }
 
     val getHistoryUseCase: GetHistoryUseCase by lazy {

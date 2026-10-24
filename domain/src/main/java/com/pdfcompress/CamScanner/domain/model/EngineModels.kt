@@ -39,3 +39,66 @@ data class ExportImagesResult(
     val outputSizeBytes: Long,
     val isZipArchive: Boolean
 )
+
+enum class IdCardLayoutMode(val titleAr: String, val titleEn: String) {
+    A4_VERTICAL(
+        titleAr = "صفحة A4 مجمعة (طباعة رسمية)",
+        titleEn = "Merged A4 (Official Copy)"
+    ),
+    SIDE_BY_SIDE(
+        titleAr = "جنباً إلى جنب في صفحة واحدة",
+        titleEn = "Side-by-Side (Single Page)"
+    ),
+    TWO_PAGES(
+        titleAr = "صفحتين منفصلتين (PDF)",
+        titleEn = "Two Pages (PDF)"
+    ),
+    FRONT_ONLY(
+        titleAr = "حفظ الوجه فقط",
+        titleEn = "Front Side Only"
+    ),
+    BACK_ONLY(
+        titleAr = "حفظ الظهر فقط",
+        titleEn = "Back Side Only"
+    )
+}
+
+data class IdCardResult(
+    val outputSizeBytes: Long,
+    val pageCount: Int,
+    val layoutMode: IdCardLayoutMode
+)
+
+data class PassportMrzData(
+    val rawMrz: String,
+    val documentType: String,
+    val countryCode: String,
+    val countryName: String,
+    val documentNumber: String,
+    val documentNumberCheckOk: Boolean,
+    val nationality: String,
+    val nationalityName: String,
+    val dateOfBirth: String,
+    val dateOfBirthRaw: String,
+    val dateOfBirthCheckOk: Boolean,
+    val sex: String,
+    val sexLabel: String,
+    val expiryDate: String,
+    val expiryDateRaw: String,
+    val expiryDateCheckOk: Boolean,
+    val isExpired: Boolean,
+    val personalNumber: String?,
+    val surname: String,
+    val givenNames: String,
+    val fullName: String,
+    val isCompositeCheckOk: Boolean,
+    val isCompleteValid: Boolean
+)
+
+data class BackupReport(
+    val totalFilesCount: Int,
+    val totalRecordsCount: Int,
+    val outputSizeBytes: Long,
+    val isEncrypted: Boolean,
+    val summary: String
+)

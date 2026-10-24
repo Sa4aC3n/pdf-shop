@@ -27,13 +27,13 @@ class SettingsRepositoryImpl(
     }
 
     override val settings: Flow<UserSettings> = context.dataStore.data.map { preferences ->
-        val themeString = preferences[PreferencesKeys.THEME] ?: AppTheme.SYSTEM.name
-        val colorThemeString = preferences[PreferencesKeys.COLOR_THEME] ?: AppColorTheme.CRIMSON_RED.name
+        val themeString = preferences[PreferencesKeys.THEME] ?: AppTheme.LIGHT.name
+        val colorThemeString = preferences[PreferencesKeys.COLOR_THEME] ?: AppColorTheme.EMERALD_TEAL.name
         val langString = preferences[PreferencesKeys.LANGUAGE] ?: AppLanguage.ARABIC.name
         val lockEnabled = preferences[PreferencesKeys.APP_LOCK] ?: false
 
-        val theme = try { AppTheme.valueOf(themeString) } catch (_: Exception) { AppTheme.SYSTEM }
-        val colorTheme = try { AppColorTheme.valueOf(colorThemeString) } catch (_: Exception) { AppColorTheme.CRIMSON_RED }
+        val theme = try { AppTheme.valueOf(themeString) } catch (_: Exception) { AppTheme.LIGHT }
+        val colorTheme = try { AppColorTheme.valueOf(colorThemeString) } catch (_: Exception) { AppColorTheme.EMERALD_TEAL }
         val language = try { AppLanguage.valueOf(langString) } catch (_: Exception) { AppLanguage.ARABIC }
 
         UserSettings(
