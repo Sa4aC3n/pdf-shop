@@ -25,3 +25,30 @@
 -dontwarn com.googlecode.tesseract.android.**
 -keep class com.googlecode.leptonica.android.** { *; }
 -dontwarn com.googlecode.leptonica.android.**
+
+# Native JNI entrypoints
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Room Entities & DAOs
+-keep @androidx.room.Entity class *
+-keepclassmembers class * {
+    @androidx.room.PrimaryKey *;
+    @androidx.room.ColumnInfo *;
+}
+
+# Domain & Data Models
+-keep class com.pdfcompress.CamScanner.domain.model.** { *; }
+
+# R8 Optimization Configuration
+-repackageclasses ''
+-allowaccessmodification
+
+# Remove sensitive logging in release builds
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}

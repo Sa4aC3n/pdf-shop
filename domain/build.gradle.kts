@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.pdfcompress.CamScanner.domain"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 26

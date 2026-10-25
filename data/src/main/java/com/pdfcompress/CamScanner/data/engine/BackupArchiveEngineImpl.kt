@@ -188,11 +188,11 @@ class BackupArchiveEngineImpl(
                             startedAt = obj.optLong("startedAt", System.currentTimeMillis()),
                             completedAt = obj.optLong("completedAt", System.currentTimeMillis()),
                             inputDocumentNames = inputNames,
-                            outputDocumentName = obj.optString("outputName", null),
-                            outputDocumentUri = obj.optString("outputUri", null),
-                            outputSizeBytes = if (obj.has("outputSizeBytes")) obj.optLong("outputSizeBytes") else null,
-                            summary = obj.optString("summary", null),
-                            errorMessage = obj.optString("errorMessage", null),
+                            outputDocumentName = if (obj.has("outputName") && !obj.isNull("outputName")) obj.getString("outputName") else null,
+                            outputDocumentUri = if (obj.has("outputUri") && !obj.isNull("outputUri")) obj.getString("outputUri") else null,
+                            outputSizeBytes = if (obj.has("outputSizeBytes") && !obj.isNull("outputSizeBytes")) obj.optLong("outputSizeBytes") else null,
+                            summary = if (obj.has("summary") && !obj.isNull("summary")) obj.getString("summary") else null,
+                            errorMessage = if (obj.has("errorMessage") && !obj.isNull("errorMessage")) obj.getString("errorMessage") else null,
                             isOutputAvailable = true
                         )
                         restoredRecords.add(rec)

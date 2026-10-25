@@ -3,8 +3,15 @@
 
     <!-- Strictly NO INTERNET permission to guarantee 100% offline security -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Mark all hardware features non-essential for maximum device compatibility (tablets, Chromebooks, Go edition) -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+    <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <application
         android:name=".PdfShopApplication"
@@ -15,6 +22,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
+        android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.PDFShop">
 
         <activity

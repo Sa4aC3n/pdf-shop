@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,28 +9,50 @@ plugins {
 
 android {
     namespace = "com.pdfcompress.CamScanner"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.pdfcompress.CamScanner"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 3
         versionName = "3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    val releaseKeystore = file("${rootDir}/release.keystore")
+    val localProperties = Properties().apply {
+        val localPropsFile = rootProject.file("local.properties")
+        if (localPropsFile.exists()) {
+            localPropsFile.inputStream().use { stream -> this.load(stream) }
+        }
+    }
+
+    val releaseStoreFilePath = localProperties.getProperty("RELEASE_STORE_FILE")
+        ?: System.getenv("RELEASE_STORE_FILE")
+        ?: "${rootDir}/release.keystore"
+    val releaseKeystore = file(releaseStoreFilePath)
+
+    val releaseStorePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
+        ?: System.getenv("RELEASE_STORE_PASSWORD")
+        ?: System.getenv("KEYSTORE_PASSWORD")
+
+    val releaseKeyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
+        ?: System.getenv("RELEASE_KEY_ALIAS")
+        ?: System.getenv("KEY_ALIAS")
+
+    val releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
+        ?: System.getenv("RELEASE_KEY_PASSWORD")
+        ?: System.getenv("KEY_PASSWORD")
     val debugKeystore = file("${rootDir}/debug.keystore")
 
     signingConfigs {
-        if (releaseKeystore.exists()) {
+        if (releaseKeystore.exists() && releaseStorePassword != null && releaseKeyAlias != null) {
             create("release") {
                 storeFile = releaseKeystore
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
-                keyAlias = System.getenv("KEY_ALIAS") ?: "releasekey"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword ?: releaseStorePassword
             }
         }
         if (debugKeystore.exists()) {
@@ -43,10 +67,11 @@ android {
 
     buildTypes {
         release {
-            if (releaseKeystore.exists()) {
+            if (releaseKeystore.exists() && releaseStorePassword != null && releaseKeyAlias != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -69,6 +94,15 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 }
 
