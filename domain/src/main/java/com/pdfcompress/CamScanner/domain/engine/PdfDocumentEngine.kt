@@ -17,6 +17,10 @@ import com.pdfcompress.CamScanner.domain.model.PageNumberFormat
 import com.pdfcompress.CamScanner.domain.model.CropMargins
 import com.pdfcompress.CamScanner.domain.model.RedactionRect
 import com.pdfcompress.CamScanner.domain.model.ImageProcessOptions
+import com.pdfcompress.CamScanner.domain.model.CompareResult
+import com.pdfcompress.CamScanner.domain.model.SignaturePlacement
+import com.pdfcompress.CamScanner.domain.model.FormFieldInfo
+import com.pdfcompress.CamScanner.domain.model.FormFillRequest
 
 data class EngineProgress(
     val percentage: Int,
@@ -225,6 +229,31 @@ interface PdfDocumentEngine {
     suspend fun convertOrCompressImage(
         sourceUri: Uri,
         options: ImageProcessOptions,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun comparePdfs(
+        uriA: Uri,
+        uriB: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<CompareResult>
+
+    suspend fun signPdf(
+        pdfUri: Uri,
+        signatureBitmapUri: Uri,
+        placement: SignaturePlacement,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun getFormFields(
+        pdfUri: Uri
+    ): AppResult<List<FormFieldInfo>>
+
+    suspend fun fillFormFields(
+        pdfUri: Uri,
+        request: FormFillRequest,
         destinationUri: Uri,
         onProgress: (EngineProgress) -> Unit
     ): AppResult<Long>

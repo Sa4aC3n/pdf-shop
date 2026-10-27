@@ -67,6 +67,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.CompareArrows
+import androidx.compose.material.icons.filled.Draw
+import androidx.compose.material.icons.filled.Assignment
 import com.pdfcompress.CamScanner.core.ui.components.EmptyStateView
 import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
 import com.pdfcompress.CamScanner.core.ui.components.ModernSoftButton
@@ -205,6 +208,9 @@ fun HistoryItemCard(item: HistoryItemUi) {
         ToolType.RTF_TO_PDF -> "RTF إلى PDF" to Icons.Default.Description
         ToolType.CONVERT_IMAGE -> "تحويل صيغة الصورة" to Icons.Default.PhotoLibrary
         ToolType.COMPRESS_IMAGE -> "ضغط وتصغير صورة" to Icons.Default.Compress
+        ToolType.COMPARE_PDF -> "مقارنة ملفات PDF" to Icons.Default.CompareArrows
+        ToolType.SIGN_PDF -> "التوقيع الإلكتروني" to Icons.Default.Draw
+        ToolType.PDF_FORMS -> "تعبئة نموذج PDF" to Icons.Default.Assignment
         else -> "أداة PDF" to Icons.Default.Description
     }
 

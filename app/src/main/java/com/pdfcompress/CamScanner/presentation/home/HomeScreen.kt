@@ -54,6 +54,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LayersClear
+import androidx.compose.material.icons.filled.CompareArrows
+import androidx.compose.material.icons.filled.Draw
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -903,6 +906,54 @@ fun HomeScreen(
                 cardBorderLight = Color(0xFFFEF3C7),
                 cardBorderDark = Color(0xFF92400E),
                 route = "image_studio"
+            ),
+            ToolDefinition(
+                id = "compare_pdf",
+                title = "مقارنة ملفات PDF",
+                description = "مقارنة مستندين صفحة بصفحة واكتشاف التعديلات والإضافات والحذف أوفلاين",
+                icon = Icons.Default.CompareArrows,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.ORGANIZE,
+                accentLightColor = Color(0xFF0284C7),
+                accentDarkColor = Color(0xFF38BDF8),
+                cardBgLight = Color(0xFFF0F9FF),
+                cardBgDark = Color(0xFF0C4A6E),
+                cardBorderLight = Color(0xFFE0F2FE),
+                cardBorderDark = Color(0xFF0369A1),
+                route = "compare_pdf"
+            ),
+            ToolDefinition(
+                id = "sign_pdf",
+                title = "التوقيع الإلكتروني",
+                description = "رسم توقيعك بيدك على الشاشة أو استيراده ووضعه بدقة على أي صفحة في المستند",
+                icon = Icons.Default.Draw,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.PROTECT_REPAIR,
+                accentLightColor = Color(0xFF7C3AED),
+                accentDarkColor = Color(0xFFA78BFA),
+                cardBgLight = Color(0xFFF5F3FF),
+                cardBgDark = Color(0xFF4C1D95),
+                cardBorderLight = Color(0xFFEDE9FE),
+                cardBorderDark = Color(0xFF5B21B6),
+                route = "sign_pdf"
+            ),
+            ToolDefinition(
+                id = "pdf_forms",
+                title = "تعبئة نماذج PDF (Forms)",
+                description = "اكتشاف الحقول التفاعلية في ملفات AcroForm وتعبئتها وتسطيحها بدون إنترنت",
+                icon = Icons.Default.Assignment,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.PROTECT_REPAIR,
+                accentLightColor = Color(0xFF059669),
+                accentDarkColor = Color(0xFF34D399),
+                cardBgLight = Color(0xFFECFDF5),
+                cardBgDark = Color(0xFF064E3B),
+                cardBorderLight = Color(0xFFD1FAE5),
+                cardBorderDark = Color(0xFF047857),
+                route = "pdf_forms"
             )
 
         )

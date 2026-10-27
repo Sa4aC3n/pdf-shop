@@ -158,6 +158,12 @@ import com.pdfcompress.CamScanner.presentation.htmltopdf.HtmlToPdfViewModel
 import com.pdfcompress.CamScanner.presentation.pdftomarkdown.PdfToMarkdownScreen
 import com.pdfcompress.CamScanner.presentation.imagestudio.ImageStudioScreen
 import com.pdfcompress.CamScanner.presentation.imagestudio.ImageStudioViewModel
+import com.pdfcompress.CamScanner.presentation.compare.CompareScreen
+import com.pdfcompress.CamScanner.presentation.compare.CompareViewModel
+import com.pdfcompress.CamScanner.presentation.sign.SignScreen
+import com.pdfcompress.CamScanner.presentation.sign.SignViewModel
+import com.pdfcompress.CamScanner.presentation.forms.PdfFormsScreen
+import com.pdfcompress.CamScanner.presentation.forms.PdfFormsViewModel
 import com.pdfcompress.CamScanner.presentation.pdftomarkdown.PdfToMarkdownViewModel
 
 import kotlinx.coroutines.launch
@@ -1052,6 +1058,46 @@ fun AppNavHost(
                 )
                 ImageStudioScreen(
                     viewModel = imageStudioViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.ComparePdf.route) {
+                val compareViewModel: CompareViewModel = viewModel(
+                    factory = CompareViewModel.Factory(
+                        comparePdfUseCase = container.comparePdfUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                CompareScreen(
+                    viewModel = compareViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.SignPdf.route) {
+                val signViewModel: SignViewModel = viewModel(
+                    factory = SignViewModel.Factory(
+                        signPdfUseCase = container.signPdfUseCase,
+                        safHelper = container.safHelper,
+                        tempFileManager = container.tempFileManager
+                    )
+                )
+                SignScreen(
+                    viewModel = signViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.PdfForms.route) {
+                val pdfFormsViewModel: PdfFormsViewModel = viewModel(
+                    factory = PdfFormsViewModel.Factory(
+                        pdfFormsUseCase = container.pdfFormsUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                PdfFormsScreen(
+                    viewModel = pdfFormsViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

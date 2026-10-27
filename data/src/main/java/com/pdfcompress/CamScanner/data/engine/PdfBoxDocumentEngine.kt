@@ -47,6 +47,20 @@ import com.pdfcompress.CamScanner.domain.model.CropMargins
 import com.pdfcompress.CamScanner.domain.model.RedactionRect
 import com.pdfcompress.CamScanner.domain.model.ImageProcessOptions
 import com.pdfcompress.CamScanner.domain.model.ImageOutputFormat
+import com.pdfcompress.CamScanner.domain.model.CompareResult
+import com.pdfcompress.CamScanner.domain.model.PageDiff
+import com.pdfcompress.CamScanner.domain.model.DiffLine
+import com.pdfcompress.CamScanner.domain.model.DiffType
+import com.pdfcompress.CamScanner.domain.model.SignaturePlacement
+import com.pdfcompress.CamScanner.domain.model.FormFieldInfo
+import com.pdfcompress.CamScanner.domain.model.FormFieldType
+import com.pdfcompress.CamScanner.domain.model.FormFillRequest
+import com.tom_roush.pdfbox.pdmodel.interactive.form.PDAcroForm
+import com.tom_roush.pdfbox.pdmodel.interactive.form.PDField
+import com.tom_roush.pdfbox.pdmodel.interactive.form.PDTextField
+import com.tom_roush.pdfbox.pdmodel.interactive.form.PDCheckBox
+import com.tom_roush.pdfbox.pdmodel.interactive.form.PDRadioButton
+import com.tom_roush.pdfbox.pdmodel.interactive.form.PDComboBox
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import com.tom_roush.pdfbox.text.PDFTextStripper
@@ -2602,6 +2616,281 @@ class PdfBoxDocumentEngine(
             AppResult.Error(AppError.Unknown(e.message ?: "فشل في معالجة وتحويل الصورة"))
         } finally {
             tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun comparePdfs(
+        uriA: Uri,
+        uriB: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<CompareResult> = withContext(dispatchers.io) {
+        var tempA: File? = null
+        var tempB: File? = null
+        try {
+            onProgress(EngineProgress(10, "تحميل المستندين للمقارنة بدون إنترنت…"))
+            tempA = tempFileManager.createTempPdfFile("compare_a")
+            tempB = tempFileManager.createTempPdfFile("compare_b")
+
+            val copiedA = tempFileManager.copyUriToTempFile(uriA, tempA)
+            val copiedB = tempFileManager.copyUriToTempFile(uriB, tempB)
+
+            if (!copiedA || !copiedB || !tempA.exists() || !tempB.exists()) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف أو كلا ملفي الـ PDF للمقارنة"))
+            }
+
+            PDDocument.load(tempA).use { docA ->
+                PDDocument.load(tempB).use { docB ->
+                    val pagesA = docA.numberOfPages
+                    val pagesB = docB.numberOfPages
+                    val maxPages = maxOf(pagesA, pagesB)
+
+                    val stripper = PDFTextStripper()
+                    val pageDiffs = mutableListOf<PageDiff>()
+                    var diffCount = 0
+
+                    for (p in 1..maxPages) {
+                        ensureActive()
+                        val percent = 10 + (p * 85 / maxPages)
+                        onProgress(EngineProgress(percent, "مقارنة نصوص ومحتوى الصفحة $p من $maxPages…"))
+
+                        stripper.startPage = p
+                        stripper.endPage = p
+
+                        val textA = if (p <= pagesA) stripper.getText(docA).trim() else ""
+                        val textB = if (p <= pagesB) stripper.getText(docB).trim() else ""
+
+                        val linesA = if (textA.isBlank()) emptyList() else textA.lines().map { it.trim() }
+                        val linesB = if (textB.isBlank()) emptyList() else textB.lines().map { it.trim() }
+
+                        val diffLines = mutableListOf<DiffLine>()
+                        val setA = linesA.toSet()
+                        val setB = linesB.toSet()
+
+                        var pageHasDiff = false
+
+                        // Lines present in both or in A
+                        for (la in linesA) {
+                            if (la in setB) {
+                                diffLines.add(DiffLine(DiffType.UNCHANGED, la))
+                            } else {
+                                diffLines.add(DiffLine(DiffType.REMOVED, la))
+                                pageHasDiff = true
+                            }
+                        }
+
+                        // Lines present only in B
+                        for (lb in linesB) {
+                            if (lb !in setA) {
+                                diffLines.add(DiffLine(DiffType.ADDED, lb))
+                                pageHasDiff = true
+                            }
+                        }
+
+                        if (p > pagesA || p > pagesB) {
+                            pageHasDiff = true
+                        }
+
+                        if (pageHasDiff) {
+                            diffCount++
+                        }
+
+                        pageDiffs.add(
+                            PageDiff(
+                                pageNumber = p,
+                                hasDiff = pageHasDiff,
+                                textA = textA,
+                                textB = textB,
+                                diffLines = diffLines
+                            )
+                        )
+                    }
+
+                    onProgress(EngineProgress(100, "اكتملت المقارنة بنجاح!"))
+                    AppResult.Success(
+                        CompareResult(
+                            totalPagesA = pagesA,
+                            totalPagesB = pagesB,
+                            diffCount = diffCount,
+                            pageDiffs = pageDiffs
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشلت مقارنة ملفات الـ PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempA)
+            tempFileManager.deleteFileSafely(tempB)
+        }
+    }
+
+    override suspend fun signPdf(
+        pdfUri: Uri,
+        signatureBitmapUri: Uri,
+        placement: SignaturePlacement,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempInput: File? = null
+        var tempOutput: File? = null
+        try {
+            onProgress(EngineProgress(15, "تحميل ملف الـ PDF وقراءة صورة التوقيع…"))
+            tempInput = tempFileManager.createTempPdfFile("sign_input")
+            val copied = tempFileManager.copyUriToTempFile(pdfUri, tempInput)
+            if (!copied || !tempInput.exists()) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF الأصلي للتوقيع"))
+            }
+
+            val sigBitmap = context.contentResolver.openInputStream(signatureBitmapUri)?.use {
+                BitmapFactory.decodeStream(it)
+            } ?: return@withContext AppResult.Error(AppError.Unknown("تعذر قراءة صورة التوقيع الإلكتروني"))
+
+            onProgress(EngineProgress(45, "دمج وتثبيت التوقيع في الصفحة المحددة…"))
+            tempOutput = tempFileManager.createTempPdfFile("sign_output")
+
+            PDDocument.load(tempInput).use { doc ->
+                val targetPageIndex = placement.pageIndex.coerceIn(0, (doc.numberOfPages - 1).coerceAtLeast(0))
+                val targetPage = doc.getPage(targetPageIndex)
+
+                val cropBox = targetPage.cropBox ?: targetPage.mediaBox
+                val pw = cropBox.width
+                val ph = cropBox.height
+
+                val sigWidth = (pw * placement.widthPercent).coerceAtLeast(30f)
+                val sigHeight = (ph * placement.heightPercent).coerceAtLeast(15f)
+
+                val sigX = cropBox.lowerLeftX + (pw * placement.xPercent)
+                // In PDF coordinates, 0,0 is at the bottom-left corner
+                val sigY = cropBox.lowerLeftY + (ph - (ph * placement.yPercent) - sigHeight)
+
+                val pdImage = LosslessFactory.createFromImage(doc, sigBitmap)
+
+                PDPageContentStream(doc, targetPage, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
+                    cs.drawImage(pdImage, sigX, sigY, sigWidth, sigHeight)
+                }
+
+                doc.save(tempOutput)
+            }
+            sigBitmap.recycle()
+
+            onProgress(EngineProgress(85, "حفظ المستند الموقع في الذاكرة…"))
+            val success = tempFileManager.copyFileToUri(tempOutput, destinationUri)
+            val size = tempOutput.length()
+
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ الملف الموقع في الوجهة المحددة"))
+            }
+
+            onProgress(EngineProgress(100, "تم توقيع المستند بنجاح!"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في توقيع المستند الإلكتروني"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempInput)
+            tempFileManager.deleteFileSafely(tempOutput)
+        }
+    }
+
+    override suspend fun getFormFields(pdfUri: Uri): AppResult<List<FormFieldInfo>> = withContext(dispatchers.io) {
+        var tempFile: File? = null
+        try {
+            tempFile = tempFileManager.createTempPdfFile("acro_fields")
+            val copied = tempFileManager.copyUriToTempFile(pdfUri, tempFile)
+            if (!copied || !tempFile.exists()) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF لفحص النماذج"))
+            }
+
+            PDDocument.load(tempFile).use { doc ->
+                val acroForm = doc.documentCatalog.acroForm
+                if (acroForm == null) {
+                    return@withContext AppResult.Success(emptyList())
+                }
+
+                val list = mutableListOf<FormFieldInfo>()
+                for (field in acroForm.fields) {
+                    val fieldName = field.fullyQualifiedName ?: field.partialName ?: ""
+                    val fieldValue = field.valueAsString ?: ""
+                    val fieldType = when (field) {
+                        is PDTextField -> FormFieldType.TEXT
+                        is PDCheckBox -> FormFieldType.CHECKBOX
+                        is PDRadioButton -> FormFieldType.RADIO
+                        is PDComboBox -> FormFieldType.COMBO
+                        else -> FormFieldType.UNKNOWN
+                    }
+                    list.add(
+                        FormFieldInfo(
+                            name = fieldName,
+                            value = fieldValue,
+                            type = fieldType,
+                            isReadOnly = field.isReadOnly
+                        )
+                    )
+                }
+                AppResult.Success(list)
+            }
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل فحص حقول نموذج الـ PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempFile)
+        }
+    }
+
+    override suspend fun fillFormFields(
+        pdfUri: Uri,
+        request: FormFillRequest,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempInput: File? = null
+        var tempOutput: File? = null
+        try {
+            onProgress(EngineProgress(20, "تحميل نموذج الـ PDF وقراءة الحقول…"))
+            tempInput = tempFileManager.createTempPdfFile("fill_input")
+            tempOutput = tempFileManager.createTempPdfFile("fill_output")
+
+            val copied = tempFileManager.copyUriToTempFile(pdfUri, tempInput)
+            if (!copied || !tempInput.exists()) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF لتعبئة النموذج"))
+            }
+
+            onProgress(EngineProgress(50, "كتابة وتطبيق البيانات في حقول النموذج…"))
+            PDDocument.load(tempInput).use { doc ->
+                val acroForm = doc.documentCatalog.acroForm
+                    ?: return@withContext AppResult.Error(AppError.UnsupportedFeature("المستند لا يحتوي على نموذج تفاعلي قابل للتعبئة"))
+
+                for ((name, value) in request.fields) {
+                    try {
+                        val field = acroForm.getField(name)
+                        if (field != null && !field.isReadOnly) {
+                            field.setValue(value)
+                        }
+                    } catch (_: Exception) {}
+                }
+
+                if (request.flattenAfterFill) {
+                    try {
+                        acroForm.flatten()
+                    } catch (_: Exception) {}
+                }
+
+                doc.save(tempOutput)
+            }
+
+            onProgress(EngineProgress(85, "حفظ النموذج المكتمل في الوجهة المحددة…"))
+            val success = tempFileManager.copyFileToUri(tempOutput, destinationUri)
+            val size = tempOutput.length()
+
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ النموذج النهائي"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل تعبئة وحفظ النموذج بنجاح!"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل تعبئة وحفظ نموذج الـ PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempInput)
+            tempFileManager.deleteFileSafely(tempOutput)
         }
     }
 }

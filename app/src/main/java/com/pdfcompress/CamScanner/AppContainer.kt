@@ -47,6 +47,9 @@ import com.pdfcompress.CamScanner.domain.usecase.HtmlToPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.RtfToPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.PdfToMarkdownUseCase
 import com.pdfcompress.CamScanner.domain.usecase.ImageStudioUseCase
+import com.pdfcompress.CamScanner.domain.usecase.ComparePdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.SignPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.PdfFormsUseCase
 
 
 class AppContainer(private val context: Context) {
@@ -208,5 +211,17 @@ class AppContainer(private val context: Context) {
 
     val imageStudioUseCase: ImageStudioUseCase by lazy {
         ImageStudioUseCase(pdfEngine, historyRepository)
+    }
+
+    val comparePdfUseCase: ComparePdfUseCase by lazy {
+        ComparePdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val signPdfUseCase: SignPdfUseCase by lazy {
+        SignPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val pdfFormsUseCase: PdfFormsUseCase by lazy {
+        PdfFormsUseCase(pdfEngine, historyRepository)
     }
 }

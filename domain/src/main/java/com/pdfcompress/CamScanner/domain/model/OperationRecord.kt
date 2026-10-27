@@ -30,7 +30,12 @@ enum class ToolType {
     PDF_TO_MARKDOWN,
     RTF_TO_PDF,
     CONVERT_IMAGE,
-    COMPRESS_IMAGE
+    COMPRESS_IMAGE,
+    COMPARE_PDF,
+    SIGN_PDF,
+    PDF_FORMS,
+    AI_SUMMARIZE,
+    TRANSLATE_PDF
 }
 
 enum class OperationStatus {

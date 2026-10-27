@@ -32,4 +32,7 @@ sealed class Screen(val route: String) {
     data object HtmlToPdf : Screen("html_to_pdf")
     data object PdfToMarkdown : Screen("pdf_to_markdown")
     data object ImageStudio : Screen("image_studio")
+    data object ComparePdf : Screen("compare_pdf")
+    data object SignPdf : Screen("sign_pdf")
+    data object PdfForms : Screen("pdf_forms")
 }
