@@ -41,6 +41,11 @@ import com.pdfcompress.CamScanner.domain.usecase.AddPageNumbersUseCase
 import com.pdfcompress.CamScanner.domain.usecase.GrayscalePdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.CropPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.RedactPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.TextToPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.MarkdownToPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.HtmlToPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.RtfToPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.PdfToMarkdownUseCase
 
 
 class AppContainer(private val context: Context) {
@@ -178,5 +183,25 @@ class AppContainer(private val context: Context) {
 
     val redactPdfUseCase: RedactPdfUseCase by lazy {
         RedactPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val textToPdfUseCase: TextToPdfUseCase by lazy {
+        TextToPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val markdownToPdfUseCase: MarkdownToPdfUseCase by lazy {
+        MarkdownToPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val htmlToPdfUseCase: HtmlToPdfUseCase by lazy {
+        HtmlToPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val rtfToPdfUseCase: RtfToPdfUseCase by lazy {
+        RtfToPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val pdfToMarkdownUseCase: PdfToMarkdownUseCase by lazy {
+        PdfToMarkdownUseCase(pdfEngine, historyRepository)
     }
 }

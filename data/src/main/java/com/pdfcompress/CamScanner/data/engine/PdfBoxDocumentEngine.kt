@@ -2237,4 +2237,288 @@ class PdfBoxDocumentEngine(
             tempFileManager.deleteFileSafely(tempDest)
         }
     }
+
+    private fun renderSpannedToPdfFile(
+        spanned: CharSequence,
+        outputFile: File,
+        onProgress: (EngineProgress) -> Unit
+    ) {
+        val pdfDoc = android.graphics.pdf.PdfDocument()
+        val pageWidth = 595
+        val pageHeight = 842
+        val margin = 45
+        val contentWidth = pageWidth - (margin * 2)
+        val contentHeight = pageHeight - (margin * 2)
+
+        val textPaint = android.text.TextPaint().apply {
+            isAntiAlias = true
+            textSize = 13f
+            color = android.graphics.Color.BLACK
+        }
+
+        val staticLayout = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            android.text.StaticLayout.Builder.obtain(spanned, 0, spanned.length, textPaint, contentWidth)
+                .setAlignment(android.text.Layout.Alignment.ALIGN_NORMAL)
+                .setLineSpacing(0f, 1.25f)
+                .setIncludePad(false)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            android.text.StaticLayout(
+                spanned,
+                textPaint,
+                contentWidth,
+                android.text.Layout.Alignment.ALIGN_NORMAL,
+                1.25f,
+                0f,
+                false
+            )
+        }
+
+        var lineIndex = 0
+        var pageNumber = 1
+        val totalLines = staticLayout.lineCount
+
+        while (lineIndex < totalLines) {
+            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+            val page = pdfDoc.startPage(pageInfo)
+            val canvas = page.canvas
+
+            canvas.save()
+            canvas.translate(margin.toFloat(), margin.toFloat())
+
+            val startY = staticLayout.getLineTop(lineIndex)
+            var endLine = lineIndex
+            while (endLine < totalLines && (staticLayout.getLineBottom(endLine) - startY) <= contentHeight) {
+                endLine++
+            }
+
+            canvas.clipRect(0, 0, contentWidth, contentHeight)
+            canvas.translate(0f, -startY.toFloat())
+            staticLayout.draw(canvas)
+            canvas.restore()
+
+            val numPaint = android.text.TextPaint().apply {
+                textSize = 9f
+                color = android.graphics.Color.GRAY
+                textAlign = android.graphics.Paint.Align.CENTER
+            }
+            page.canvas.drawText("- $pageNumber -", (pageWidth / 2).toFloat(), (pageHeight - 20).toFloat(), numPaint)
+
+            pdfDoc.finishPage(page)
+            val pct = 20 + ((lineIndex.toFloat() / maxOf(1, totalLines)) * 60).toInt()
+            onProgress(EngineProgress(pct, "توليد صفحة $pageNumber من المستند…"))
+
+            pageNumber++
+            lineIndex = if (endLine > lineIndex) endLine else lineIndex + 1
+        }
+
+        outputFile.outputStream().use { out ->
+            pdfDoc.writeTo(out)
+        }
+        pdfDoc.close()
+    }
+
+    override suspend fun textToPdf(
+        text: String,
+        title: String?,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "تجهيز وتنسيق النصوص للـ PDF…"))
+            tempDest = tempFileManager.createTempPdfFile("text_to_pdf")
+            val fullText = if (!title.isNullOrBlank()) "$title\n\n$text" else text
+            renderSpannedToPdfFile(fullText, tempDest, onProgress)
+
+            onProgress(EngineProgress(90, "حفظ ملف الـ PDF النهائي…"))
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ ملف الـ PDF"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل تحويل النص إلى PDF بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في تحويل النص إلى PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun markdownToPdf(
+        markdownText: String,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "تحليل شفرة الماركداون وتنسيق العناصر…"))
+            tempDest = tempFileManager.createTempPdfFile("md_to_pdf")
+
+            var html = markdownText
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+            html = html.replace(Regex("(?m)^### (.*)$"), "<h3>$1</h3>")
+            html = html.replace(Regex("(?m)^## (.*)$"), "<h2>$1</h2>")
+            html = html.replace(Regex("(?m)^# (.*)$"), "<h1>$1</h1>")
+            html = html.replace(Regex("\\*\\*(.*?)\\*\\*"), "<b>$1</b>")
+            html = html.replace(Regex("\\*(.*?)\\*"), "<i>$1</i>")
+            html = html.replace(Regex("(?m)^[-*] (.*)$"), "• $1<br/>")
+            html = html.replace("\n", "<br/>")
+
+            val spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY)
+            } else {
+                @Suppress("DEPRECATION")
+                android.text.Html.fromHtml(html)
+            }
+
+            renderSpannedToPdfFile(spanned, tempDest, onProgress)
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ ملف الـ PDF"))
+            }
+
+            onProgress(EngineProgress(100, "تم تحويل الماركداون إلى PDF بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في تحويل الماركداون إلى PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun htmlToPdf(
+        htmlText: String,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "تحليل وتنسيق عناصر HTML…"))
+            tempDest = tempFileManager.createTempPdfFile("html_to_pdf")
+
+            val spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                android.text.Html.fromHtml(htmlText, android.text.Html.FROM_HTML_MODE_LEGACY)
+            } else {
+                @Suppress("DEPRECATION")
+                android.text.Html.fromHtml(htmlText)
+            }
+
+            renderSpannedToPdfFile(spanned, tempDest, onProgress)
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ ملف الـ PDF"))
+            }
+
+            onProgress(EngineProgress(100, "تم تحويل كود HTML إلى PDF بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في تحويل HTML إلى PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun rtfToPdf(
+        rtfText: String,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "استخراج النصوص والتنسيق من ملف RTF…"))
+            tempDest = tempFileManager.createTempPdfFile("rtf_to_pdf")
+
+            val plain = rtfText
+                .replace(Regex("\\[a-zA-Z0-9]+ ?"), "")
+                .replace("{", "")
+                .replace("}", "")
+                .trim()
+
+            renderSpannedToPdfFile(plain, tempDest, onProgress)
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ ملف الـ PDF"))
+            }
+
+            onProgress(EngineProgress(100, "تم تحويل ملف RTF إلى PDF بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في تحويل RTF إلى PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun pdfToMarkdown(
+        sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(15, "فتح مستند PDF واستخراج النصوص…"))
+            tempSource = tempFileManager.createTempPdfFile("pdf_to_md_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            tempDest = tempFileManager.createTempPdfFile("converted_md")
+            val stripper = PDFTextStripper()
+            val text = PDDocument.load(tempSource).use { doc ->
+                stripper.getText(doc)
+            }
+
+            onProgress(EngineProgress(60, "معالجة وهيكلة العناوين والفقرات كماركداون…"))
+            val lines = text.lines()
+            val mdBuilder = StringBuilder()
+            var isFirstLine = true
+
+            for (line in lines) {
+                val trimmed = line.trim()
+                if (trimmed.isBlank()) {
+                    mdBuilder.append("\n\n")
+                    continue
+                }
+
+                if (isFirstLine && trimmed.length < 80) {
+                    mdBuilder.append("# ").append(trimmed).append("\n\n")
+                    isFirstLine = false
+                } else if (trimmed.length < 50 && (trimmed.startsWith("فصل") || trimmed.startsWith("باب") || trimmed.startsWith("Section") || trimmed.startsWith("Chapter") || (trimmed.all { it.isUpperCase() || it.isWhitespace() } && trimmed.length > 3))) {
+                    mdBuilder.append("## ").append(trimmed).append("\n\n")
+                } else if (trimmed.startsWith("•") || trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+                    mdBuilder.append("* ").append(trimmed.removePrefix("•").removePrefix("-").removePrefix("*").trim()).append("\n")
+                } else {
+                    mdBuilder.append(trimmed).append(" ")
+                }
+            }
+
+            tempDest.writeText(mdBuilder.toString(), Charsets.UTF_8)
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ ملف الماركداون"))
+            }
+
+            onProgress(EngineProgress(100, "تم استخراج وحفظ ملف الماركداون بنجاح!"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في تحويل الـ PDF لماركداون"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
 }

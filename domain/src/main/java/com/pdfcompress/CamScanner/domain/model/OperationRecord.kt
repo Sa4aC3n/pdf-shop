@@ -23,7 +23,12 @@ enum class ToolType {
     PAGE_NUMBERS,
     GRAYSCALE,
     CROP,
-    REDACT
+    REDACT,
+    TXT_TO_PDF,
+    MARKDOWN_TO_PDF,
+    HTML_TO_PDF,
+    PDF_TO_MARKDOWN,
+    RTF_TO_PDF
 }
 
 enum class OperationStatus {

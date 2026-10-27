@@ -189,4 +189,35 @@ interface PdfDocumentEngine {
         destinationUri: Uri,
         onProgress: (EngineProgress) -> Unit
     ): AppResult<Long>
+
+    suspend fun textToPdf(
+        text: String,
+        title: String?,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun markdownToPdf(
+        markdownText: String,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun htmlToPdf(
+        htmlText: String,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun rtfToPdf(
+        rtfText: String,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun pdfToMarkdown(
+        sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
 }

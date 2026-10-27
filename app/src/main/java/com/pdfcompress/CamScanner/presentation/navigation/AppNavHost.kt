@@ -149,6 +149,14 @@ import com.pdfcompress.CamScanner.presentation.crop.CropScreen
 import com.pdfcompress.CamScanner.presentation.crop.CropViewModel
 import com.pdfcompress.CamScanner.presentation.redact.RedactScreen
 import com.pdfcompress.CamScanner.presentation.redact.RedactViewModel
+import com.pdfcompress.CamScanner.presentation.texttopdf.TextToPdfScreen
+import com.pdfcompress.CamScanner.presentation.texttopdf.TextToPdfViewModel
+import com.pdfcompress.CamScanner.presentation.markdowntopdf.MarkdownToPdfScreen
+import com.pdfcompress.CamScanner.presentation.markdowntopdf.MarkdownToPdfViewModel
+import com.pdfcompress.CamScanner.presentation.htmltopdf.HtmlToPdfScreen
+import com.pdfcompress.CamScanner.presentation.htmltopdf.HtmlToPdfViewModel
+import com.pdfcompress.CamScanner.presentation.pdftomarkdown.PdfToMarkdownScreen
+import com.pdfcompress.CamScanner.presentation.pdftomarkdown.PdfToMarkdownViewModel
 
 import kotlinx.coroutines.launch
 
@@ -977,6 +985,58 @@ fun AppNavHost(
                 )
                 RedactScreen(
                     viewModel = redactViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.TextToPdf.route) {
+                val textToPdfViewModel: TextToPdfViewModel = viewModel(
+                    factory = TextToPdfViewModel.Factory(
+                        textToPdfUseCase = container.textToPdfUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                TextToPdfScreen(
+                    viewModel = textToPdfViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.MarkdownToPdf.route) {
+                val markdownToPdfViewModel: MarkdownToPdfViewModel = viewModel(
+                    factory = MarkdownToPdfViewModel.Factory(
+                        markdownToPdfUseCase = container.markdownToPdfUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                MarkdownToPdfScreen(
+                    viewModel = markdownToPdfViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.HtmlToPdf.route) {
+                val htmlToPdfViewModel: HtmlToPdfViewModel = viewModel(
+                    factory = HtmlToPdfViewModel.Factory(
+                        htmlToPdfUseCase = container.htmlToPdfUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                HtmlToPdfScreen(
+                    viewModel = htmlToPdfViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.PdfToMarkdown.route) {
+                val pdfToMarkdownViewModel: PdfToMarkdownViewModel = viewModel(
+                    factory = PdfToMarkdownViewModel.Factory(
+                        pdfToMarkdownUseCase = container.pdfToMarkdownUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                PdfToMarkdownScreen(
+                    viewModel = pdfToMarkdownViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

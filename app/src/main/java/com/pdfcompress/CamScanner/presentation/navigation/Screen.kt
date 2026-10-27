@@ -27,4 +27,8 @@ sealed class Screen(val route: String) {
     data object Grayscale : Screen("grayscale")
     data object Crop : Screen("crop")
     data object Redact : Screen("redact")
+    data object TextToPdf : Screen("text_to_pdf")
+    data object MarkdownToPdf : Screen("markdown_to_pdf")
+    data object HtmlToPdf : Screen("html_to_pdf")
+    data object PdfToMarkdown : Screen("pdf_to_markdown")
 }

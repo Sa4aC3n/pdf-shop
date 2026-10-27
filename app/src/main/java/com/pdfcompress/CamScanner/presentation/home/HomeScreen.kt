@@ -59,6 +59,9 @@ import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FormatPaint
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Html
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Lock
@@ -820,6 +823,70 @@ fun HomeScreen(
                 cardBorderLight = Color(0xFFE5E7EB),
                 cardBorderDark = Color(0xFF374151),
                 route = "redact"
+            ),
+            ToolDefinition(
+                id = "text_to_pdf",
+                title = "تحويل النص إلى PDF",
+                description = "كتابة أو استيراد ملفات TXT وتحويلها لمستندات PDF بتنسيق صفحات وهوامش وترقيم",
+                icon = Icons.Default.TextFields,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.CONVERT_COMPRESS,
+                accentLightColor = Color(0xFF0D9488),
+                accentDarkColor = Color(0xFF2DD4BF),
+                cardBgLight = Color(0xFFF0FDFA),
+                cardBgDark = Color(0xFF134E4A),
+                cardBorderLight = Color(0xFFCCFBF1),
+                cardBorderDark = Color(0xFF115E59),
+                route = "text_to_pdf"
+            ),
+            ToolDefinition(
+                id = "markdown_to_pdf",
+                title = "ماركداون إلى PDF",
+                description = "تحويل مستندات Markdown (.md) إلى وثائق PDF أنيقة بالعناوين والقوائم والتنسيقات",
+                icon = Icons.Default.Code,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.CONVERT_COMPRESS,
+                accentLightColor = Color(0xFF6366F1),
+                accentDarkColor = Color(0xFF818CF8),
+                cardBgLight = Color(0xFFEEF2FF),
+                cardBgDark = Color(0xFF312E81),
+                cardBorderLight = Color(0xFFE0E7FF),
+                cardBorderDark = Color(0xFF3730A3),
+                route = "markdown_to_pdf"
+            ),
+            ToolDefinition(
+                id = "html_to_pdf",
+                title = "HTML إلى PDF",
+                description = "تحويل شفرات وصفحات الويب HTML إلى مستندات PDF منسقة بدون إنترنت",
+                icon = Icons.Default.Html,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.CONVERT_COMPRESS,
+                accentLightColor = Color(0xFFE11D48),
+                accentDarkColor = Color(0xFFFB7185),
+                cardBgLight = Color(0xFFFFF1F2),
+                cardBgDark = Color(0xFF4C0519),
+                cardBorderLight = Color(0xFFFFE4E6),
+                cardBorderDark = Color(0xFF881337),
+                route = "html_to_pdf"
+            ),
+            ToolDefinition(
+                id = "pdf_to_markdown",
+                title = "PDF إلى ماركداون (.md)",
+                description = "استخراج وهيكلة نصوص الـ PDF إلى ملفات ماركداون نظيفة وجاهزة للتحرير",
+                icon = Icons.Default.Description,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.CONVERT_COMPRESS,
+                accentLightColor = Color(0xFF84CC16),
+                accentDarkColor = Color(0xFFA3E635),
+                cardBgLight = Color(0xFFF7FEE7),
+                cardBgDark = Color(0xFF365314),
+                cardBorderLight = Color(0xFFECFCCB),
+                cardBorderDark = Color(0xFF4D7C0F),
+                route = "pdf_to_markdown"
             )
 
         )

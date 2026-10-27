@@ -198,6 +198,11 @@ fun HistoryItemCard(item: HistoryItemUi) {
         ToolType.GRAYSCALE -> "أبيض وأسود" to Icons.Default.FormatPaint
         ToolType.CROP -> "قص الهوامش" to Icons.Default.Crop
         ToolType.REDACT -> "حجب البيانات" to Icons.Default.VisibilityOff
+        ToolType.TXT_TO_PDF -> "نص إلى PDF" to Icons.Default.Description
+        ToolType.MARKDOWN_TO_PDF -> "ماركداون إلى PDF" to Icons.Default.Description
+        ToolType.HTML_TO_PDF -> "HTML إلى PDF" to Icons.Default.Description
+        ToolType.PDF_TO_MARKDOWN -> "PDF إلى ماركداون" to Icons.Default.Description
+        ToolType.RTF_TO_PDF -> "RTF إلى PDF" to Icons.Default.Description
         else -> "أداة PDF" to Icons.Default.Description
     }
 
