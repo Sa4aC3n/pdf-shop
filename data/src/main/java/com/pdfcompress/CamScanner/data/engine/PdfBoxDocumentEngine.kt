@@ -41,6 +41,12 @@ import com.pdfcompress.CamScanner.domain.model.ExportImagesResult
 import com.pdfcompress.CamScanner.domain.model.RepairReport
 import com.pdfcompress.CamScanner.domain.model.TextExtractionResult
 import com.pdfcompress.CamScanner.domain.model.PdfMetadata
+import com.pdfcompress.CamScanner.domain.model.PageNumberPosition
+import com.pdfcompress.CamScanner.domain.model.PageNumberFormat
+import com.pdfcompress.CamScanner.domain.model.CropMargins
+import com.pdfcompress.CamScanner.domain.model.RedactionRect
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -1891,6 +1897,341 @@ class PdfBoxDocumentEngine(
             AppResult.Success(size)
         } catch (e: Exception) {
             AppResult.Error(AppError.Unknown(e.message ?: "فشل في تسطيح مستند الـ PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun organizePages(
+        sourceUri: Uri,
+        pageOrder: List<Int>,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "فتح مستند الـ PDF المصدر…"))
+            tempSource = tempFileManager.createTempPdfFile("organize_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            tempDest = tempFileManager.createTempPdfFile("organize_out")
+            PDDocument.load(tempSource).use { sourceDoc ->
+                val totalSourcePages = sourceDoc.numberOfPages
+                if (totalSourcePages == 0) {
+                    return@withContext AppResult.Error(AppError.CorruptedPdf("المستند لا يحتوي على أي صفحات"))
+                }
+
+                PDDocument().use { targetDoc ->
+                    val totalToExport = pageOrder.size
+                    pageOrder.forEachIndexed { idx, pageIdx ->
+                        ensureActive()
+                        if (pageIdx in 0 until totalSourcePages) {
+                            val page = sourceDoc.getPage(pageIdx)
+                            targetDoc.importPage(page)
+                        }
+                        val pct = 15 + ((idx + 1).toFloat() / totalToExport * 70).toInt()
+                        onProgress(EngineProgress(pct, "معالجة وترتيب صفحة ${idx + 1} من $totalToExport…"))
+                    }
+
+                    onProgress(EngineProgress(88, "حفظ المستند المرتب…"))
+                    targetDoc.save(tempDest)
+                }
+            }
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ المستند المرتب"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل ترتيب وحفظ الصفحات بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في إعادة ترتيب الصفحات"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun addPageNumbers(
+        sourceUri: Uri,
+        position: PageNumberPosition,
+        format: PageNumberFormat,
+        startNumber: Int,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "فتح مستند الـ PDF للترقيم…"))
+            tempSource = tempFileManager.createTempPdfFile("page_num_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            tempDest = tempFileManager.createTempPdfFile("page_num_out")
+            PDDocument.load(tempSource).use { doc ->
+                val totalPages = doc.numberOfPages
+                val font = PDType1Font.HELVETICA
+                val fontSize = 10f
+                val margin = 36f
+
+                for (i in 0 until totalPages) {
+                    ensureActive()
+                    val currentNumber = startNumber + i
+                    val text = format.template
+                        .replace("{n}", currentNumber.toString())
+                        .replace("{total}", totalPages.toString())
+
+                    val page = doc.getPage(i)
+                    val box = page.cropBox ?: page.mediaBox
+                    val textWidth = font.getStringWidth(text) / 1000f * fontSize
+
+                    val x = when (position) {
+                        PageNumberPosition.BOTTOM_LEFT, PageNumberPosition.TOP_LEFT -> box.lowerLeftX + margin
+                        PageNumberPosition.BOTTOM_CENTER, PageNumberPosition.TOP_CENTER -> box.lowerLeftX + (box.width - textWidth) / 2f
+                        PageNumberPosition.BOTTOM_RIGHT, PageNumberPosition.TOP_RIGHT -> box.upperRightX - margin - textWidth
+                    }
+
+                    val y = when (position) {
+                        PageNumberPosition.BOTTOM_LEFT, PageNumberPosition.BOTTOM_CENTER, PageNumberPosition.BOTTOM_RIGHT -> box.lowerLeftY + margin
+                        PageNumberPosition.TOP_LEFT, PageNumberPosition.TOP_CENTER, PageNumberPosition.TOP_RIGHT -> box.upperRightY - margin - fontSize
+                    }
+
+                    val contentStream = PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true)
+                    contentStream.beginText()
+                    contentStream.setFont(font, fontSize)
+                    contentStream.setNonStrokingColor(0.2f, 0.2f, 0.2f)
+                    contentStream.newLineAtOffset(x, y)
+                    contentStream.showText(text)
+                    contentStream.endText()
+                    contentStream.close()
+
+                    val pct = 15 + ((i + 1).toFloat() / totalPages * 70).toInt()
+                    onProgress(EngineProgress(pct, "إضافة الترقيم لصفحة ${i + 1} من $totalPages…"))
+                }
+
+                onProgress(EngineProgress(88, "حفظ المستند المرقم…"))
+                doc.save(tempDest)
+            }
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ المستند المرقم"))
+            }
+
+            onProgress(EngineProgress(100, "تم ترقيم جميع الصفحات بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في إضافة أرقام الصفحات"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun convertToGrayscale(
+        sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        var pfd: ParcelFileDescriptor? = null
+        var renderer: PdfRenderer? = null
+        try {
+            onProgress(EngineProgress(10, "تجهيز مستند PDF للتحويل…"))
+            tempSource = tempFileManager.createTempPdfFile("gray_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            tempDest = tempFileManager.createTempPdfFile("gray_out")
+            pfd = ParcelFileDescriptor.open(tempSource, ParcelFileDescriptor.MODE_READ_ONLY)
+            renderer = PdfRenderer(pfd)
+            val totalPages = renderer.pageCount
+
+            PDDocument().use { targetDoc ->
+                val grayMatrix = ColorMatrix().apply { setSaturation(0f) }
+                val paint = Paint().apply {
+                    colorFilter = ColorMatrixColorFilter(grayMatrix)
+                }
+
+                for (i in 0 until totalPages) {
+                    ensureActive()
+                    val page = renderer.openPage(i)
+                    val width = (page.width * 1.5f).toInt()
+                    val height = (page.height * 1.5f).toInt()
+
+                    val colorBmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    page.render(colorBmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
+                    val pageWidth = page.width.toFloat()
+                    val pageHeight = page.height.toFloat()
+                    page.close()
+
+                    val grayBmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(grayBmp)
+                    canvas.drawBitmap(colorBmp, 0f, 0f, paint)
+                    colorBmp.recycle()
+
+                    val pdPage = PDPage(PDRectangle(pageWidth, pageHeight))
+                    targetDoc.addPage(pdPage)
+                    val pdImage = JPEGFactory.createFromImage(targetDoc, grayBmp, 0.85f)
+                    grayBmp.recycle()
+
+                    PDPageContentStream(targetDoc, pdPage).use { cs ->
+                        cs.drawImage(pdImage, 0f, 0f, pageWidth, pageHeight)
+                    }
+
+                    val pct = 15 + ((i + 1).toFloat() / totalPages * 70).toInt()
+                    onProgress(EngineProgress(pct, "تحويل صفحة ${i + 1} من $totalPages لأبيض وأسود…"))
+                }
+
+                onProgress(EngineProgress(88, "حفظ المستند الرمادي النهائي…"))
+                targetDoc.save(tempDest)
+            }
+
+            renderer.close()
+            renderer = null
+            pfd.close()
+            pfd = null
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ المستند الرمادي"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل تحويل المستند لتدرج رمادي بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في تحويل المستند لتدرج رمادي"))
+        } finally {
+            renderer?.close()
+            pfd?.close()
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun cropPages(
+        sourceUri: Uri,
+        margins: CropMargins,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "فتح ملف الـ PDF لقص الهوامش…"))
+            tempSource = tempFileManager.createTempPdfFile("crop_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            tempDest = tempFileManager.createTempPdfFile("crop_out")
+            PDDocument.load(tempSource).use { doc ->
+                val totalPages = doc.numberOfPages
+
+                for (i in 0 until totalPages) {
+                    ensureActive()
+                    val page = doc.getPage(i)
+                    val mediaBox = page.mediaBox
+                    val newLowerLeftX = mediaBox.lowerLeftX + margins.leftPt
+                    val newLowerLeftY = mediaBox.lowerLeftY + margins.bottomPt
+                    val newWidth = mediaBox.width - margins.leftPt - margins.rightPt
+                    val newHeight = mediaBox.height - margins.topPt - margins.bottomPt
+
+                    if (newWidth > 20f && newHeight > 20f) {
+                        page.cropBox = PDRectangle(newLowerLeftX, newLowerLeftY, newWidth, newHeight)
+                    }
+
+                    val pct = 15 + ((i + 1).toFloat() / totalPages * 70).toInt()
+                    onProgress(EngineProgress(pct, "تطبيق قص الهوامش على صفحة ${i + 1} من $totalPages…"))
+                }
+
+                onProgress(EngineProgress(88, "حفظ المستند المقصوص…"))
+                doc.save(tempDest)
+            }
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ المستند المقصوص"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل قص الهوامش بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في قص هوامش المستند"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun redactAreas(
+        sourceUri: Uri,
+        redactions: List<RedactionRect>,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "فتح مستند الـ PDF لتطبيق الحجب…"))
+            tempSource = tempFileManager.createTempPdfFile("redact_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            tempDest = tempFileManager.createTempPdfFile("redact_out")
+            PDDocument.load(tempSource).use { doc ->
+                val totalPages = doc.numberOfPages
+                val redactionsByPage = redactions.groupBy { it.pageIndex }
+
+                redactionsByPage.forEach { (pageIdx, rects) ->
+                    ensureActive()
+                    if (pageIdx in 0 until totalPages) {
+                        val page = doc.getPage(pageIdx)
+                        val box = page.cropBox ?: page.mediaBox
+                        val contentStream = PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true)
+                        contentStream.setNonStrokingColor(0f, 0f, 0f)
+
+                        for (rect in rects) {
+                            val x = box.lowerLeftX + (rect.leftRatio * box.width)
+                            val width = rect.widthRatio * box.width
+                            val height = rect.heightRatio * box.height
+                            val y = box.upperRightY - (rect.topRatio * box.height) - height
+
+                            contentStream.addRect(x, y, width, height)
+                            contentStream.fill()
+                        }
+                        contentStream.close()
+                    }
+                }
+
+                onProgress(EngineProgress(88, "حفظ المستند المحجوب…"))
+                doc.save(tempDest)
+            }
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ المستند المحجوب"))
+            }
+
+            onProgress(EngineProgress(100, "تم حجب وتعتيم المناطق المحددة بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في حجب المناطق المحددة"))
         } finally {
             tempFileManager.deleteFileSafely(tempSource)
             tempFileManager.deleteFileSafely(tempDest)

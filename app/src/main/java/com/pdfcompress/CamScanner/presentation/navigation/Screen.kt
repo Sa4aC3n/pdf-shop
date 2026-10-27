@@ -22,4 +22,9 @@ sealed class Screen(val route: String) {
     data object Unlock : Screen("unlock")
     data object Metadata : Screen("metadata")
     data object Flatten : Screen("flatten")
+    data object Organize : Screen("organize")
+    data object PageNumbers : Screen("page_numbers")
+    data object Grayscale : Screen("grayscale")
+    data object Crop : Screen("crop")
+    data object Redact : Screen("redact")
 }

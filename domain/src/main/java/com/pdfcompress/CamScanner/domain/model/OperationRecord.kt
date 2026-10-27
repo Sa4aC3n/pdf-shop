@@ -18,7 +18,12 @@ enum class ToolType {
     PROTECT,
     UNLOCK,
     METADATA,
-    FLATTEN
+    FLATTEN,
+    ORGANIZE_PAGES,
+    PAGE_NUMBERS,
+    GRAYSCALE,
+    CROP,
+    REDACT
 }
 
 enum class OperationStatus {

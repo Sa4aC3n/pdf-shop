@@ -36,6 +36,11 @@ import com.pdfcompress.CamScanner.domain.usecase.ProtectPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.UnlockPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.PdfMetadataUseCase
 import com.pdfcompress.CamScanner.domain.usecase.FlattenPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.OrganizePagesUseCase
+import com.pdfcompress.CamScanner.domain.usecase.AddPageNumbersUseCase
+import com.pdfcompress.CamScanner.domain.usecase.GrayscalePdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.CropPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.RedactPdfUseCase
 
 
 class AppContainer(private val context: Context) {
@@ -153,5 +158,25 @@ class AppContainer(private val context: Context) {
 
     val flattenPdfUseCase: FlattenPdfUseCase by lazy {
         FlattenPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val organizePagesUseCase: OrganizePagesUseCase by lazy {
+        OrganizePagesUseCase(pdfEngine, historyRepository)
+    }
+
+    val addPageNumbersUseCase: AddPageNumbersUseCase by lazy {
+        AddPageNumbersUseCase(pdfEngine, historyRepository)
+    }
+
+    val grayscalePdfUseCase: GrayscalePdfUseCase by lazy {
+        GrayscalePdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val cropPdfUseCase: CropPdfUseCase by lazy {
+        CropPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val redactPdfUseCase: RedactPdfUseCase by lazy {
+        RedactPdfUseCase(pdfEngine, historyRepository)
     }
 }

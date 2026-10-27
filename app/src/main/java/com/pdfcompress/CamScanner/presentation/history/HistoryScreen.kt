@@ -37,6 +37,11 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LayersClear
+import androidx.compose.material.icons.filled.Crop
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.FormatPaint
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -188,6 +193,11 @@ fun HistoryItemCard(item: HistoryItemUi) {
         ToolType.UNLOCK -> "إزالة الحماية" to Icons.Default.LockOpen
         ToolType.METADATA -> "البيانات الوصفية" to Icons.Default.Info
         ToolType.FLATTEN -> "تسطيح PDF" to Icons.Default.LayersClear
+        ToolType.ORGANIZE_PAGES -> "تنظيم الصفحات" to Icons.Default.GridView
+        ToolType.PAGE_NUMBERS -> "أرقام الصفحات" to Icons.Default.FormatListNumbered
+        ToolType.GRAYSCALE -> "أبيض وأسود" to Icons.Default.FormatPaint
+        ToolType.CROP -> "قص الهوامش" to Icons.Default.Crop
+        ToolType.REDACT -> "حجب البيانات" to Icons.Default.VisibilityOff
         else -> "أداة PDF" to Icons.Default.Description
     }
 

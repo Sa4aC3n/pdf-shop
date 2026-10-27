@@ -12,6 +12,10 @@ import com.pdfcompress.CamScanner.domain.model.RepairReport
 import com.pdfcompress.CamScanner.domain.model.TextExtractionResult
 import com.pdfcompress.CamScanner.domain.model.WatermarkOptions
 import com.pdfcompress.CamScanner.domain.model.PdfMetadata
+import com.pdfcompress.CamScanner.domain.model.PageNumberPosition
+import com.pdfcompress.CamScanner.domain.model.PageNumberFormat
+import com.pdfcompress.CamScanner.domain.model.CropMargins
+import com.pdfcompress.CamScanner.domain.model.RedactionRect
 
 data class EngineProgress(
     val percentage: Int,
@@ -146,6 +150,42 @@ interface PdfDocumentEngine {
 
     suspend fun flatten(
         sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun organizePages(
+        sourceUri: Uri,
+        pageOrder: List<Int>,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun addPageNumbers(
+        sourceUri: Uri,
+        position: PageNumberPosition,
+        format: PageNumberFormat,
+        startNumber: Int,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun convertToGrayscale(
+        sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun cropPages(
+        sourceUri: Uri,
+        margins: CropMargins,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun redactAreas(
+        sourceUri: Uri,
+        redactions: List<RedactionRect>,
         destinationUri: Uri,
         onProgress: (EngineProgress) -> Unit
     ): AppResult<Long>

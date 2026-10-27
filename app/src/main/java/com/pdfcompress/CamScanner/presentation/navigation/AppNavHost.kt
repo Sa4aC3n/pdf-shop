@@ -139,6 +139,16 @@ import com.pdfcompress.CamScanner.presentation.metadata.MetadataScreen
 import com.pdfcompress.CamScanner.presentation.metadata.MetadataViewModel
 import com.pdfcompress.CamScanner.presentation.flatten.FlattenScreen
 import com.pdfcompress.CamScanner.presentation.flatten.FlattenViewModel
+import com.pdfcompress.CamScanner.presentation.organize.OrganizeScreen
+import com.pdfcompress.CamScanner.presentation.organize.OrganizeViewModel
+import com.pdfcompress.CamScanner.presentation.pagenumbers.PageNumbersScreen
+import com.pdfcompress.CamScanner.presentation.pagenumbers.PageNumbersViewModel
+import com.pdfcompress.CamScanner.presentation.grayscale.GrayscaleScreen
+import com.pdfcompress.CamScanner.presentation.grayscale.GrayscaleViewModel
+import com.pdfcompress.CamScanner.presentation.crop.CropScreen
+import com.pdfcompress.CamScanner.presentation.crop.CropViewModel
+import com.pdfcompress.CamScanner.presentation.redact.RedactScreen
+import com.pdfcompress.CamScanner.presentation.redact.RedactViewModel
 
 import kotlinx.coroutines.launch
 
@@ -902,6 +912,71 @@ fun AppNavHost(
                 )
                 FlattenScreen(
                     viewModel = flattenViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.Organize.route) {
+                val organizeViewModel: OrganizeViewModel = viewModel(
+                    factory = OrganizeViewModel.Factory(
+                        organizeUseCase = container.organizePagesUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                OrganizeScreen(
+                    viewModel = organizeViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.PageNumbers.route) {
+                val pageNumbersViewModel: PageNumbersViewModel = viewModel(
+                    factory = PageNumbersViewModel.Factory(
+                        pageNumbersUseCase = container.addPageNumbersUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                PageNumbersScreen(
+                    viewModel = pageNumbersViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.Grayscale.route) {
+                val grayscaleViewModel: GrayscaleViewModel = viewModel(
+                    factory = GrayscaleViewModel.Factory(
+                        grayscaleUseCase = container.grayscalePdfUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                GrayscaleScreen(
+                    viewModel = grayscaleViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.Crop.route) {
+                val cropViewModel: CropViewModel = viewModel(
+                    factory = CropViewModel.Factory(
+                        cropUseCase = container.cropPdfUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                CropScreen(
+                    viewModel = cropViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.Redact.route) {
+                val redactViewModel: RedactViewModel = viewModel(
+                    factory = RedactViewModel.Factory(
+                        redactUseCase = container.redactPdfUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                RedactScreen(
+                    viewModel = redactViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

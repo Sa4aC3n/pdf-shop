@@ -54,6 +54,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LayersClear
+import androidx.compose.material.icons.filled.Crop
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.FormatPaint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Lock
@@ -735,6 +740,86 @@ fun HomeScreen(
                 cardBorderLight = Color(0xFFBAE6FD),
                 cardBorderDark = Color(0xFF0C4A6E),
                 route = "flatten"
+            ),
+            ToolDefinition(
+                id = "organize",
+                title = "ترتيب وتنظيم الصفحات",
+                description = "إعادة ترتيب، حذف، تكرار وتنظيم صفحات الـ PDF بالسحب والترتيب المخصص",
+                icon = Icons.Default.GridView,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.ORGANIZE,
+                accentLightColor = Color(0xFF7C3AED),
+                accentDarkColor = Color(0xFFA78BFA),
+                cardBgLight = Color(0xFFF5F3FF),
+                cardBgDark = Color(0xFF2E1065),
+                cardBorderLight = Color(0xFFDDD6FE),
+                cardBorderDark = Color(0xFF4C1D95),
+                route = "organize"
+            ),
+            ToolDefinition(
+                id = "page_numbers",
+                title = "إضافة أرقام الصفحات",
+                description = "ترقيم احترافي لجميع الصفحات مع تخصيص الموضع والصيغة والبدء من أي رقم",
+                icon = Icons.Default.FormatListNumbered,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.ORGANIZE,
+                accentLightColor = Color(0xFF059669),
+                accentDarkColor = Color(0xFF34D399),
+                cardBgLight = Color(0xFFECFDF5),
+                cardBgDark = Color(0xFF064E3B),
+                cardBorderLight = Color(0xFFA7F3D0),
+                cardBorderDark = Color(0xFF065F46),
+                route = "page_numbers"
+            ),
+            ToolDefinition(
+                id = "grayscale",
+                title = "تحويل لأبيض وأسود",
+                description = "تحويل الوثائق الملونة لتدرج رمادي عالي الدقة لتوفير حبر الطباعة وتقليل الحجم",
+                icon = Icons.Default.FormatPaint,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.ORGANIZE,
+                accentLightColor = Color(0xFF4B5563),
+                accentDarkColor = Color(0xFF9CA3AF),
+                cardBgLight = Color(0xFFF9FAFB),
+                cardBgDark = Color(0xFF111827),
+                cardBorderLight = Color(0xFFE5E7EB),
+                cardBorderDark = Color(0xFF374151),
+                route = "grayscale"
+            ),
+            ToolDefinition(
+                id = "crop",
+                title = "قص هوامش الـ PDF",
+                description = "قص الحواف والهوامش الفارغة من جميع الصفحات لتحسين القراءة والطباعة",
+                icon = Icons.Default.Crop,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.ORGANIZE,
+                accentLightColor = Color(0xFFEA580C),
+                accentDarkColor = Color(0xFFFB923C),
+                cardBgLight = Color(0xFFFFF7ED),
+                cardBgDark = Color(0xFF431407),
+                cardBorderLight = Color(0xFFFFEDD5),
+                cardBorderDark = Color(0xFF7C2D12),
+                route = "crop"
+            ),
+            ToolDefinition(
+                id = "redact",
+                title = "حجب البيانات (Redact)",
+                description = "حجب وتعتيم دائم للمعلومات والبيانات الحساسة بمربعات سوداء يستحيل إزالتها",
+                icon = Icons.Default.VisibilityOff,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.PROTECT_REPAIR,
+                accentLightColor = Color(0xFF1F2937),
+                accentDarkColor = Color(0xFF6B7280),
+                cardBgLight = Color(0xFFF3F4F6),
+                cardBgDark = Color(0xFF111827),
+                cardBorderLight = Color(0xFFE5E7EB),
+                cardBorderDark = Color(0xFF374151),
+                route = "redact"
             )
 
         )
