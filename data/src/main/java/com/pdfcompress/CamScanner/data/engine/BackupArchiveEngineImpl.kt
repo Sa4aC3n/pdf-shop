@@ -84,7 +84,7 @@ class BackupArchiveEngineImpl(
             zipOut.closeEntry()
 
             // 2. Add available files
-            onProgress(EngineProgress(35, "تجميع ملفات المستندات والمستمسكات المحفوظة…"))
+            onProgress(EngineProgress(35, "تجميع ملفات المستندات والوثائق المحفوظة…"))
             var includedFiles = 0
             for ((index, rec) in historyRecords.withIndex()) {
                 val uriStr = rec.outputDocumentUri

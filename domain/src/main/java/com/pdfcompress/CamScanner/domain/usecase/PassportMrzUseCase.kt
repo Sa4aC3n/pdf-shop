@@ -21,14 +21,14 @@ class PassportMrzUseCase(
         onProgress: (EngineProgress) -> Unit
     ): AppResult<PassportMrzData> {
         onProgress(EngineProgress(20, "قراءة منطقة الشيفرة المدمجة (MRZ)…"))
-        val ocrResult = pdfEngine.recognizeImageText(imageUri) { p ->
+        val ocrResult = pdfEngine.recognizePassportMrz(imageUri) { p ->
             onProgress(EngineProgress(20 + (p.percentage * 0.6).toInt(), p.stage))
         }
 
         return when (ocrResult) {
             is AppResult.Success -> {
                 onProgress(EngineProgress(85, "تحليل وقراءة بيانات جواز السفر وفق معايير ICAO 9303…"))
-                val mrzData = MrzParser.parse(ocrResult.data.text)
+                val mrzData = MrzParser.parse(ocrResult.data)
                 if (mrzData != null) {
                     onProgress(EngineProgress(100, "تم استخراج وقراءة بيانات الجواز بنجاح"))
                     AppResult.Success(mrzData)

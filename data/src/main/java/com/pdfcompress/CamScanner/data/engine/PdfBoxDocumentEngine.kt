@@ -999,6 +999,200 @@ class PdfBoxDocumentEngine(
     }
 
 
+    override suspend fun recognizePassportMrz(
+        imageUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<String> = withContext(dispatchers.io) {
+        onProgress(EngineProgress(15, "تحضير نموذج قراءة الجوازات والـ MRZ…"))
+        val datapath = ensureTessDataReady()
+
+        ensureActive()
+        onProgress(EngineProgress(30, "قراءة وتعديل زوايا دوران الصورة (EXIF)…"))
+        val originalBmp = decodeBitmapWithExif(imageUri)
+            ?: return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر قراءة أو فك تشفير صورة جواز السفر"))
+
+        try {
+            ensureActive()
+            onProgress(EngineProgress(45, "استخراج منطقة الـ MRZ ومعالجة التباين…"))
+
+            val tess = TessBaseAPI()
+            val initOk = try {
+                tess.init(datapath, "eng")
+            } catch (_: Exception) {
+                false
+            }
+            if (!initOk) {
+                return@withContext AppResult.Error(AppError.Unknown("تعذر تهيئة محرك قراءة الشيفرات"))
+            }
+
+            try {
+                tess.setVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<")
+                tess.pageSegMode = TessBaseAPI.PageSegMode.PSM_AUTO
+
+                val passes = listOf(
+                    CropStrategy.BOTTOM_30,
+                    CropStrategy.BOTTOM_45,
+                    CropStrategy.FULL,
+                    CropStrategy.ROTATE_90,
+                    CropStrategy.ROTATE_270
+                )
+
+                var bestText = ""
+                for ((idx, strategy) in passes.withIndex()) {
+                    ensureActive()
+                    val progressPct = 50 + (idx * 8)
+                    onProgress(EngineProgress(progressPct, "فحص منطقة الشيفرة المدمجة (محاولة ${idx + 1} من ${passes.size})…"))
+
+                    val candidateBmp = prepareMrzCandidateBitmap(originalBmp, strategy) ?: continue
+                    try {
+                        tess.setImage(candidateBmp)
+                        val text = tess.utF8Text ?: ""
+                        tess.clear()
+
+                        if (text.isNotBlank()) {
+                            val parsed = com.pdfcompress.CamScanner.domain.parser.MrzParser.parse(text)
+                            if (parsed != null) {
+                                bestText = text
+                                break
+                            }
+                            if (bestText.isBlank() || text.length > bestText.length) {
+                                bestText = text
+                            }
+                        }
+                    } finally {
+                        if (candidateBmp != originalBmp) {
+                            candidateBmp.recycle()
+                        }
+                    }
+                }
+
+                onProgress(EngineProgress(100, "اكتمل تحليل منطقة الشيفرة بنجاح"))
+                AppResult.Success(bestText)
+            } finally {
+                try { tess.recycle() } catch (_: Exception) {}
+            }
+        } finally {
+            originalBmp.recycle()
+        }
+    }
+
+    private enum class CropStrategy {
+        BOTTOM_30,
+        BOTTOM_45,
+        FULL,
+        ROTATE_90,
+        ROTATE_270
+    }
+
+    private fun decodeBitmapWithExif(uri: Uri): Bitmap? {
+        return try {
+            val orientation = context.contentResolver.openInputStream(uri)?.use { stream ->
+                try {
+                    val exif = android.media.ExifInterface(stream)
+                    exif.getAttributeInt(
+                        android.media.ExifInterface.TAG_ORIENTATION,
+                        android.media.ExifInterface.ORIENTATION_NORMAL
+                    )
+                } catch (_: Exception) {
+                    android.media.ExifInterface.ORIENTATION_NORMAL
+                }
+            } ?: android.media.ExifInterface.ORIENTATION_NORMAL
+
+            val rawBmp = context.contentResolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(stream)
+            } ?: return null
+
+            val rotationDegrees = when (orientation) {
+                android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+
+            if (rotationDegrees != 0f) {
+                val matrix = android.graphics.Matrix().apply { postRotate(rotationDegrees) }
+                val rotated = Bitmap.createBitmap(rawBmp, 0, 0, rawBmp.width, rawBmp.height, matrix, true)
+                if (rotated != rawBmp) rawBmp.recycle()
+                rotated
+            } else {
+                rawBmp
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun prepareMrzCandidateBitmap(source: Bitmap, strategy: CropStrategy): Bitmap? {
+        return try {
+            val cropped = when (strategy) {
+                CropStrategy.BOTTOM_30 -> {
+                    val startY = (source.height * 0.70f).toInt().coerceIn(0, source.height - 1)
+                    val h = source.height - startY
+                    Bitmap.createBitmap(source, 0, startY, source.width, h)
+                }
+                CropStrategy.BOTTOM_45 -> {
+                    val startY = (source.height * 0.55f).toInt().coerceIn(0, source.height - 1)
+                    val h = source.height - startY
+                    Bitmap.createBitmap(source, 0, startY, source.width, h)
+                }
+                CropStrategy.FULL -> {
+                    source
+                }
+                CropStrategy.ROTATE_90 -> {
+                    val matrix = android.graphics.Matrix().apply { postRotate(90f) }
+                    val rot = Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+                    val startY = (rot.height * 0.70f).toInt().coerceIn(0, rot.height - 1)
+                    val h = rot.height - startY
+                    val sub = Bitmap.createBitmap(rot, 0, startY, rot.width, h)
+                    rot.recycle()
+                    sub
+                }
+                CropStrategy.ROTATE_270 -> {
+                    val matrix = android.graphics.Matrix().apply { postRotate(270f) }
+                    val rot = Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+                    val startY = (rot.height * 0.70f).toInt().coerceIn(0, rot.height - 1)
+                    val h = rot.height - startY
+                    val sub = Bitmap.createBitmap(rot, 0, startY, rot.width, h)
+                    rot.recycle()
+                    sub
+                }
+            }
+
+            val targetWidth = 1600
+            val scale = targetWidth.toFloat() / cropped.width.toFloat()
+            val scaled = if (cropped.width != targetWidth && cropped.width > 300) {
+                val targetHeight = (cropped.height * scale).toInt().coerceAtLeast(1)
+                val s = Bitmap.createScaledBitmap(cropped, targetWidth, targetHeight, true)
+                if (cropped != source) cropped.recycle()
+                s
+            } else {
+                cropped
+            }
+
+            val gray = Bitmap.createBitmap(scaled.width, scaled.height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(gray)
+            val paint = Paint()
+            val colorMatrix = android.graphics.ColorMatrix().apply {
+                setSaturation(0f)
+                val contrast = 1.5f
+                val translate = (-0.5f * contrast + 0.5f) * 255f
+                postConcat(android.graphics.ColorMatrix(floatArrayOf(
+                    contrast, 0f, 0f, 0f, translate,
+                    0f, contrast, 0f, 0f, translate,
+                    0f, 0f, contrast, 0f, translate,
+                    0f, 0f, 0f, 1f, 0f
+                )))
+            }
+            paint.colorFilter = android.graphics.ColorMatrixColorFilter(colorMatrix)
+            canvas.drawBitmap(scaled, 0f, 0f, paint)
+
+            if (scaled != source) scaled.recycle()
+            gray
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     override suspend fun createIdCardPdf(
         frontCardUri: Uri?,
         backCardUri: Uri?,

@@ -246,7 +246,7 @@ fun BackupRestoreScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Text(
-                            text = "تُحفظ كل المستمسكات والوثائق المحفوظة في ملف أرشيف واحد آمن.",
+                            text = "تُحفظ كل الملفات والوثائق المحفوظة في ملف أرشيف واحد آمن.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -267,7 +267,7 @@ fun BackupRestoreScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "مشفّرة AES-256 (موصى به لحماية المستمسكات)",
+                                    text = "مشفّرة AES-256 (موصى به لحماية الملفات)",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )

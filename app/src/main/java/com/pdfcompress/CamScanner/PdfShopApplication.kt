@@ -1,6 +1,7 @@
-﻿package com.pdfcompress.CamScanner
+package com.pdfcompress.CamScanner
 
 import android.app.Application
+import com.google.android.gms.ads.MobileAds
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 
 class PdfShopApplication : Application() {
@@ -10,6 +11,11 @@ class PdfShopApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Initialize Google Mobile Ads SDK (AdMob)
+        try {
+            MobileAds.initialize(this) {}
+        } catch (_: Exception) {}
 
         // Initialize PDFBox resource loader for font mapping and asset rendering
         PDFBoxResourceLoader.init(applicationContext)

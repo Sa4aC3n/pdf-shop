@@ -46,8 +46,36 @@ class PassportViewModel(
     fun processPassportImage(uri: Uri) {
         viewModelScope.launch {
             try {
-                val bmp = context.contentResolver.openInputStream(uri)?.use {
+                val orientation = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    try {
+                        val exif = android.media.ExifInterface(stream)
+                        exif.getAttributeInt(
+                            android.media.ExifInterface.TAG_ORIENTATION,
+                            android.media.ExifInterface.ORIENTATION_NORMAL
+                        )
+                    } catch (_: Exception) {
+                        android.media.ExifInterface.ORIENTATION_NORMAL
+                    }
+                } ?: android.media.ExifInterface.ORIENTATION_NORMAL
+
+                val rawBmp = context.contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it)
+                }
+
+                val rotationDegrees = when (orientation) {
+                    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+
+                val bmp = if (rawBmp != null && rotationDegrees != 0f) {
+                    val m = android.graphics.Matrix().apply { postRotate(rotationDegrees) }
+                    val rot = Bitmap.createBitmap(rawBmp, 0, 0, rawBmp.width, rawBmp.height, m, true)
+                    if (rot != rawBmp) rawBmp.recycle()
+                    rot
+                } else {
+                    rawBmp
                 }
                 _uiState.update {
                     it.copy(

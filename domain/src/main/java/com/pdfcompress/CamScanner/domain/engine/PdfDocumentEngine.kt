@@ -92,6 +92,11 @@ interface PdfDocumentEngine {
         onProgress: (EngineProgress) -> Unit
     ): AppResult<Long>
 
+    suspend fun recognizePassportMrz(
+        imageUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<String>
+
     suspend fun repair(
         sourceUri: Uri,
         destinationUri: Uri,
