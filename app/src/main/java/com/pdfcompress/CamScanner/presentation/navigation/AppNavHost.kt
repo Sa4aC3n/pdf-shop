@@ -156,6 +156,8 @@ import com.pdfcompress.CamScanner.presentation.markdowntopdf.MarkdownToPdfViewMo
 import com.pdfcompress.CamScanner.presentation.htmltopdf.HtmlToPdfScreen
 import com.pdfcompress.CamScanner.presentation.htmltopdf.HtmlToPdfViewModel
 import com.pdfcompress.CamScanner.presentation.pdftomarkdown.PdfToMarkdownScreen
+import com.pdfcompress.CamScanner.presentation.imagestudio.ImageStudioScreen
+import com.pdfcompress.CamScanner.presentation.imagestudio.ImageStudioViewModel
 import com.pdfcompress.CamScanner.presentation.pdftomarkdown.PdfToMarkdownViewModel
 
 import kotlinx.coroutines.launch
@@ -1037,6 +1039,19 @@ fun AppNavHost(
                 )
                 PdfToMarkdownScreen(
                     viewModel = pdfToMarkdownViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.ImageStudio.route) {
+                val imageStudioViewModel: ImageStudioViewModel = viewModel(
+                    factory = ImageStudioViewModel.Factory(
+                        imageStudioUseCase = container.imageStudioUseCase,
+                        safHelper = container.safHelper
+                    )
+                )
+                ImageStudioScreen(
+                    viewModel = imageStudioViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

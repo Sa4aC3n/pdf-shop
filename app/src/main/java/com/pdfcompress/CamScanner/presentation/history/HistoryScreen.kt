@@ -203,6 +203,8 @@ fun HistoryItemCard(item: HistoryItemUi) {
         ToolType.HTML_TO_PDF -> "HTML إلى PDF" to Icons.Default.Description
         ToolType.PDF_TO_MARKDOWN -> "PDF إلى ماركداون" to Icons.Default.Description
         ToolType.RTF_TO_PDF -> "RTF إلى PDF" to Icons.Default.Description
+        ToolType.CONVERT_IMAGE -> "تحويل صيغة الصورة" to Icons.Default.PhotoLibrary
+        ToolType.COMPRESS_IMAGE -> "ضغط وتصغير صورة" to Icons.Default.Compress
         else -> "أداة PDF" to Icons.Default.Description
     }
 

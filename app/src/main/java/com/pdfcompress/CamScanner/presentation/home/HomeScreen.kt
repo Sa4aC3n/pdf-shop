@@ -887,6 +887,22 @@ fun HomeScreen(
                 cardBorderLight = Color(0xFFECFCCB),
                 cardBorderDark = Color(0xFF4D7C0F),
                 route = "pdf_to_markdown"
+            ),
+            ToolDefinition(
+                id = "image_studio",
+                title = "استوديو الصور الشامل",
+                description = "تحويل الصيغ (PNG, JPEG, WEBP, PDF, SVG)، وضغط وتصغير أبعاد الصور أوفلاين بالكامل",
+                icon = Icons.Default.PhotoLibrary,
+                isAvailable = true,
+                badgeText = "جديد",
+                category = ToolCategory.CONVERT_COMPRESS,
+                accentLightColor = Color(0xFFF59E0B),
+                accentDarkColor = Color(0xFFFBBF24),
+                cardBgLight = Color(0xFFFFFBEB),
+                cardBgDark = Color(0xFF78350F),
+                cardBorderLight = Color(0xFFFEF3C7),
+                cardBorderDark = Color(0xFF92400E),
+                route = "image_studio"
             )
 
         )

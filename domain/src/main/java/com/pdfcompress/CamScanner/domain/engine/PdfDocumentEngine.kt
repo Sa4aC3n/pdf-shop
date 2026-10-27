@@ -16,6 +16,7 @@ import com.pdfcompress.CamScanner.domain.model.PageNumberPosition
 import com.pdfcompress.CamScanner.domain.model.PageNumberFormat
 import com.pdfcompress.CamScanner.domain.model.CropMargins
 import com.pdfcompress.CamScanner.domain.model.RedactionRect
+import com.pdfcompress.CamScanner.domain.model.ImageProcessOptions
 
 data class EngineProgress(
     val percentage: Int,
@@ -217,6 +218,13 @@ interface PdfDocumentEngine {
 
     suspend fun pdfToMarkdown(
         sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun convertOrCompressImage(
+        sourceUri: Uri,
+        options: ImageProcessOptions,
         destinationUri: Uri,
         onProgress: (EngineProgress) -> Unit
     ): AppResult<Long>

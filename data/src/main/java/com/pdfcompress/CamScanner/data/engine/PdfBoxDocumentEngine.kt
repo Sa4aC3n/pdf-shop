@@ -45,6 +45,8 @@ import com.pdfcompress.CamScanner.domain.model.PageNumberPosition
 import com.pdfcompress.CamScanner.domain.model.PageNumberFormat
 import com.pdfcompress.CamScanner.domain.model.CropMargins
 import com.pdfcompress.CamScanner.domain.model.RedactionRect
+import com.pdfcompress.CamScanner.domain.model.ImageProcessOptions
+import com.pdfcompress.CamScanner.domain.model.ImageOutputFormat
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import com.tom_roush.pdfbox.text.PDFTextStripper
@@ -2518,6 +2520,87 @@ class PdfBoxDocumentEngine(
             AppResult.Error(AppError.Unknown(e.message ?: "فشل في تحويل الـ PDF لماركداون"))
         } finally {
             tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun convertOrCompressImage(
+        sourceUri: Uri,
+        options: ImageProcessOptions,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "قراءة وفك ترميز الصورة الأصلية…"))
+            val inStream = safHelper.openInputStream(sourceUri)
+                ?: return@withContext AppResult.Error(AppError.FileNotFound("تعذر فتح ملف الصورة"))
+
+            val originalBmp = inStream.use { stream ->
+                BitmapFactory.decodeStream(stream)
+            } ?: return@withContext AppResult.Error(AppError.UnsupportedFormat("تعذر فك ترميز ملف الصورة المحدد"))
+
+            onProgress(EngineProgress(35, "تطبيق تغيير الأبعاد والضغط…"))
+            val finalBmp = if (options.scalePercent in 10..99) {
+                val newW = (originalBmp.width * options.scalePercent / 100).coerceAtLeast(1)
+                val newH = (originalBmp.height * options.scalePercent / 100).coerceAtLeast(1)
+                Bitmap.createScaledBitmap(originalBmp, newW, newH, true).also {
+                    if (it != originalBmp) originalBmp.recycle()
+                }
+            } else {
+                originalBmp
+            }
+
+            if (options.outputFormat == ImageOutputFormat.PDF) {
+                onProgress(EngineProgress(65, "توليد مستند PDF من الصورة…"))
+                tempDest = tempFileManager.createTempPdfFile("img_to_pdf")
+                PDDocument().use { doc ->
+                    val page = PDPage(PDRectangle(finalBmp.width.toFloat(), finalBmp.height.toFloat()))
+                    doc.addPage(page)
+                    val pdImage = JPEGFactory.createFromImage(doc, finalBmp, (options.qualityPercent / 100f).coerceIn(0.1f, 1.0f))
+                    PDPageContentStream(doc, page).use { cs ->
+                        cs.drawImage(pdImage, 0f, 0f, finalBmp.width.toFloat(), finalBmp.height.toFloat())
+                    }
+                    doc.save(tempDest)
+                }
+                finalBmp.recycle()
+            } else {
+                onProgress(EngineProgress(65, "ضغط وترميز الصورة إلى صيغة ${options.outputFormat.extension.uppercase()}…"))
+                val imgFile = tempFileManager.createTempImageFile(options.outputFormat.extension)
+                tempDest = imgFile
+                val compressFormat = when (options.outputFormat) {
+                    ImageOutputFormat.PNG -> Bitmap.CompressFormat.PNG
+                    ImageOutputFormat.JPEG -> Bitmap.CompressFormat.JPEG
+                    ImageOutputFormat.WEBP -> {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                            Bitmap.CompressFormat.WEBP_LOSSY
+                        } else {
+                            @Suppress("DEPRECATION")
+                            Bitmap.CompressFormat.WEBP
+                        }
+                    }
+                    ImageOutputFormat.PDF -> Bitmap.CompressFormat.PNG
+                }
+
+                imgFile.outputStream().use { out ->
+                    finalBmp.compress(compressFormat, options.qualityPercent.coerceIn(1, 100), out)
+                }
+                finalBmp.recycle()
+            }
+
+            val readyFile = tempDest ?: return@withContext AppResult.Error(AppError.Unknown("تعذر إنشاء ملف المخرجات"))
+            onProgress(EngineProgress(90, "حفظ الصورة النهائية…"))
+            val success = tempFileManager.copyFileToUri(readyFile, destinationUri)
+            val size = readyFile.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ الملف النهائي"))
+            }
+
+            onProgress(EngineProgress(100, "اكتملت المعالجة بنجاح!"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في معالجة وتحويل الصورة"))
+        } finally {
             tempFileManager.deleteFileSafely(tempDest)
         }
     }

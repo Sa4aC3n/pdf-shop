@@ -31,4 +31,5 @@ sealed class Screen(val route: String) {
     data object MarkdownToPdf : Screen("markdown_to_pdf")
     data object HtmlToPdf : Screen("html_to_pdf")
     data object PdfToMarkdown : Screen("pdf_to_markdown")
+    data object ImageStudio : Screen("image_studio")
 }

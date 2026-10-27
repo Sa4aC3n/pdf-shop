@@ -28,7 +28,9 @@ enum class ToolType {
     MARKDOWN_TO_PDF,
     HTML_TO_PDF,
     PDF_TO_MARKDOWN,
-    RTF_TO_PDF
+    RTF_TO_PDF,
+    CONVERT_IMAGE,
+    COMPRESS_IMAGE
 }
 
 enum class OperationStatus {
