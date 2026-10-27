@@ -11,6 +11,7 @@ import com.pdfcompress.CamScanner.domain.model.PassportMrzData
 import com.pdfcompress.CamScanner.domain.model.RepairReport
 import com.pdfcompress.CamScanner.domain.model.TextExtractionResult
 import com.pdfcompress.CamScanner.domain.model.WatermarkOptions
+import com.pdfcompress.CamScanner.domain.model.PdfMetadata
 
 data class EngineProgress(
     val percentage: Int,
@@ -104,4 +105,48 @@ interface PdfDocumentEngine {
     ): AppResult<RepairReport>
 
     suspend fun getPageCount(sourceUri: Uri): Int
+
+    suspend fun rotate(
+        sourceUri: Uri,
+        rotationDegrees: Int,
+        selectedPages: List<Int>?,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun protect(
+        sourceUri: Uri,
+        userPassword: String,
+        ownerPassword: String?,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun unlock(
+        sourceUri: Uri,
+        password: String,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun updateMetadata(
+        sourceUri: Uri,
+        title: String?,
+        author: String?,
+        subject: String?,
+        keywords: String?,
+        clearAll: Boolean,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
+
+    suspend fun readMetadata(
+        sourceUri: Uri
+    ): AppResult<PdfMetadata>
+
+    suspend fun flatten(
+        sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long>
 }

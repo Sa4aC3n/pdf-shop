@@ -30,8 +30,12 @@ android {
 
     val releaseStoreFilePath = localProperties.getProperty("RELEASE_STORE_FILE")
         ?: System.getenv("RELEASE_STORE_FILE")
-        ?: "${rootDir}/release.keystore"
-    val releaseKeystore = file(releaseStoreFilePath)
+        ?: "release.keystore"
+    val releaseKeystore = if (file(releaseStoreFilePath).isAbsolute) {
+        file(releaseStoreFilePath)
+    } else {
+        rootProject.file(releaseStoreFilePath)
+    }
 
     val releaseStorePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
         ?: System.getenv("RELEASE_STORE_PASSWORD")
@@ -44,20 +48,17 @@ android {
     val releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
         ?: System.getenv("RELEASE_KEY_PASSWORD")
         ?: System.getenv("KEY_PASSWORD")
-    val debugKeystore = file("${rootDir}/debug.keystore")
+    val fallbackKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
 
     signingConfigs {
-        if (releaseKeystore.exists() && releaseStorePassword != null && releaseKeyAlias != null) {
-            create("release") {
+        create("release") {
+            if (releaseKeystore.exists() && releaseStorePassword != null && releaseKeyAlias != null) {
                 storeFile = releaseKeystore
                 storePassword = releaseStorePassword
                 keyAlias = releaseKeyAlias
                 keyPassword = releaseKeyPassword ?: releaseStorePassword
-            }
-        }
-        if (debugKeystore.exists()) {
-            create("debugConfig") {
-                storeFile = debugKeystore
+            } else if (fallbackKeystore.exists()) {
+                storeFile = fallbackKeystore
                 storePassword = "android"
                 keyAlias = "androiddebugkey"
                 keyPassword = "android"
@@ -67,9 +68,7 @@ android {
 
     buildTypes {
         release {
-            if (releaseKeystore.exists() && releaseStorePassword != null && releaseKeyAlias != null) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -78,9 +77,6 @@ android {
             )
         }
         debug {
-            if (debugKeystore.exists()) {
-                signingConfig = signingConfigs.getByName("debugConfig")
-            }
             applicationIdSuffix = ".debug"
         }
     }

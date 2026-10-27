@@ -38,12 +38,28 @@
     @androidx.room.ColumnInfo *;
 }
 
-# Domain & Data Models
--keep class com.pdfcompress.CamScanner.domain.model.** { *; }
+# Google Mobile Ads (AdMob)
+-keep public class com.google.android.gms.ads.** {
+   public *;
+}
+-keep public class com.google.ads.** {
+   public *;
+}
+-dontwarn com.google.android.gms.ads.**
 
-# R8 Optimization Configuration
--repackageclasses ''
+# Guava / ListenableFuture
+-dontwarn com.google.common.**
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+
+# Keep standard metadata for reflection & debugging
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+
+# R8 Aggressive Code Shrinking, Inlining, and DEX Code Obfuscation
+-repackageclasses 'a'
 -allowaccessmodification
+-overloadaggressively
+-mergeinterfacesaggressively
 
 # Remove sensitive logging in release builds
 -assumenosideeffects class android.util.Log {

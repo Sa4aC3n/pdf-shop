@@ -40,6 +40,7 @@ import com.pdfcompress.CamScanner.domain.model.PassportMrzData
 import com.pdfcompress.CamScanner.domain.model.ExportImagesResult
 import com.pdfcompress.CamScanner.domain.model.RepairReport
 import com.pdfcompress.CamScanner.domain.model.TextExtractionResult
+import com.pdfcompress.CamScanner.domain.model.PdfMetadata
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -998,7 +999,6 @@ class PdfBoxDocumentEngine(
         )
     }
 
-
     override suspend fun recognizePassportMrz(
         imageUri: Uri,
         onProgress: (EngineProgress) -> Unit
@@ -1629,6 +1629,271 @@ class PdfBoxDocumentEngine(
             0
         } finally {
             tempFileManager.deleteFileSafely(tempFile)
+        }
+    }
+
+    override suspend fun rotate(
+        sourceUri: Uri,
+        rotationDegrees: Int,
+        selectedPages: List<Int>?,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "قراءة مستند PDF…"))
+            tempSource = tempFileManager.createTempPdfFile("rotate_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            onProgress(EngineProgress(35, "تطبيق تدوير الصفحات…"))
+            tempDest = tempFileManager.createTempPdfFile("rotate_out")
+            PDDocument.load(tempSource).use { doc ->
+                val total = doc.numberOfPages
+                for (i in 0 until total) {
+                    val pageNum = i + 1
+                    if (selectedPages == null || selectedPages.contains(pageNum)) {
+                        val page = doc.getPage(i)
+                        val newRotation = (page.rotation + rotationDegrees) % 360
+                        page.rotation = if (newRotation < 0) newRotation + 360 else newRotation
+                    }
+                    val percent = 35 + ((i + 1) * 45 / total)
+                    onProgress(EngineProgress(percent, "تدوير الصفحة ${i + 1} من $total…"))
+                }
+                onProgress(EngineProgress(85, "حفظ المستند المُدوّر…"))
+                doc.save(tempDest)
+            }
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ الملف المُدوّر"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل التدوير بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في تدوير صفحات الـ PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun protect(
+        sourceUri: Uri,
+        userPassword: String,
+        ownerPassword: String?,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(10, "قراءة المستند الأصلي…"))
+            tempSource = tempFileManager.createTempPdfFile("protect_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            onProgress(EngineProgress(40, "تشفير وحماية الـ PDF…"))
+            tempDest = tempFileManager.createTempPdfFile("protect_out")
+            PDDocument.load(tempSource).use { doc ->
+                val ap = com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission()
+                ap.setCanPrint(true)
+                ap.setCanExtractContent(true)
+                val spp = com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy(
+                    ownerPassword?.ifBlank { null } ?: userPassword,
+                    userPassword,
+                    ap
+                )
+                spp.encryptionKeyLength = 128
+                doc.protect(spp)
+                onProgress(EngineProgress(80, "حفظ الملف المشفر…"))
+                doc.save(tempDest)
+            }
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ الملف المشفر"))
+            }
+
+            onProgress(EngineProgress(100, "تم تشفير وتأمين الملف بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في تشفير ملف الـ PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun unlock(
+        sourceUri: Uri,
+        password: String,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(15, "التحقق من كلمة المرور وفك القفل…"))
+            tempSource = tempFileManager.createTempPdfFile("unlock_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            tempDest = tempFileManager.createTempPdfFile("unlock_out")
+            try {
+                PDDocument.load(tempSource, password).use { doc ->
+                    onProgress(EngineProgress(60, "إزالة التشفير والقيود الأمنية…"))
+                    if (doc.isEncrypted) {
+                        doc.isAllSecurityToBeRemoved = true
+                    }
+                    onProgress(EngineProgress(85, "حفظ النسخة غير المقفلة…"))
+                    doc.save(tempDest)
+                }
+            } catch (e: com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException) {
+                return@withContext AppResult.Error(AppError.PermissionDenied("كلمة المرور غير صحيحة"))
+            }
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ الملف غير المقفل"))
+            }
+
+            onProgress(EngineProgress(100, "تم فك قفل الملف بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في فك قفل ملف الـ PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun readMetadata(sourceUri: Uri): AppResult<PdfMetadata> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        try {
+            tempSource = tempFileManager.createTempPdfFile("meta_read")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+            PDDocument.load(tempSource).use { doc ->
+                val info = doc.documentInformation
+                val metadata = PdfMetadata(
+                    title = info.title,
+                    author = info.author,
+                    subject = info.subject,
+                    keywords = info.keywords,
+                    creator = info.creator,
+                    producer = info.producer,
+                    creationDate = info.creationDate?.time?.toString(),
+                    modificationDate = info.modificationDate?.time?.toString(),
+                    pageCount = doc.numberOfPages
+                )
+                AppResult.Success(metadata)
+            }
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في قراءة بيانات المستند"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+        }
+    }
+
+    override suspend fun updateMetadata(
+        sourceUri: Uri,
+        title: String?,
+        author: String?,
+        subject: String?,
+        keywords: String?,
+        clearAll: Boolean,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(20, "قراءة بيانات المستند…"))
+            tempSource = tempFileManager.createTempPdfFile("meta_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            tempDest = tempFileManager.createTempPdfFile("meta_out")
+            PDDocument.load(tempSource).use { doc ->
+                onProgress(EngineProgress(50, if (clearAll) "محو كافة البيانات الوصفية الحساسة…" else "تحديث البيانات الوصفية…"))
+                if (clearAll) {
+                    doc.documentInformation = com.tom_roush.pdfbox.pdmodel.PDDocumentInformation()
+                } else {
+                    val info = doc.documentInformation
+                    title?.let { info.title = it }
+                    author?.let { info.author = it }
+                    subject?.let { info.subject = it }
+                    keywords?.let { info.keywords = it }
+                }
+                onProgress(EngineProgress(85, "حفظ المستند…"))
+                doc.save(tempDest)
+            }
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ المستند المحدث"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل تحديث البيانات الوصفية بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في معالجة البيانات الوصفية"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
+        }
+    }
+
+    override suspend fun flatten(
+        sourceUri: Uri,
+        destinationUri: Uri,
+        onProgress: (EngineProgress) -> Unit
+    ): AppResult<Long> = withContext(dispatchers.io) {
+        var tempSource: File? = null
+        var tempDest: File? = null
+        try {
+            onProgress(EngineProgress(20, "قراءة مستند الـ PDF وحقول النماذج…"))
+            tempSource = tempFileManager.createTempPdfFile("flatten_src")
+            if (!tempFileManager.copyUriToTempFile(sourceUri, tempSource)) {
+                return@withContext AppResult.Error(AppError.CorruptedPdf("تعذر فتح ملف الـ PDF"))
+            }
+
+            tempDest = tempFileManager.createTempPdfFile("flatten_out")
+            PDDocument.load(tempSource).use { doc ->
+                onProgress(EngineProgress(55, "تسطيح وتثبيت الحقول والتعليقات بالصفحات…"))
+                val acroForm = doc.documentCatalog.acroForm
+                if (acroForm != null) {
+                    acroForm.flatten()
+                }
+                onProgress(EngineProgress(85, "حفظ المستند المسطّح…"))
+                doc.save(tempDest)
+            }
+
+            val success = tempFileManager.copyFileToUri(tempDest, destinationUri)
+            val size = tempDest.length()
+            if (!success) {
+                return@withContext AppResult.Error(AppError.InsufficientStorage("تعذر حفظ المستند المسطح"))
+            }
+
+            onProgress(EngineProgress(100, "اكتمل تسطيح النماذج والتعليقات بنجاح"))
+            AppResult.Success(size)
+        } catch (e: Exception) {
+            AppResult.Error(AppError.Unknown(e.message ?: "فشل في تسطيح مستند الـ PDF"))
+        } finally {
+            tempFileManager.deleteFileSafely(tempSource)
+            tempFileManager.deleteFileSafely(tempDest)
         }
     }
 }

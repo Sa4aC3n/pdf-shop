@@ -13,7 +13,12 @@ enum class ToolType {
     REPAIR,
     ID_CARD,
     PASSPORT_MRZ,
-    BACKUP_RESTORE
+    BACKUP_RESTORE,
+    ROTATE,
+    PROTECT,
+    UNLOCK,
+    METADATA,
+    FLATTEN
 }
 
 enum class OperationStatus {

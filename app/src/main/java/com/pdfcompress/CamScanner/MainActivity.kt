@@ -2,7 +2,10 @@ package com.pdfcompress.CamScanner
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.runtime.DisposableEffect
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -85,6 +88,22 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
+                        DisposableEffect(isDark) {
+                enableEdgeToEdge(
+                    statusBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    },
+                    navigationBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    }
+                )
+                onDispose {}
+            }
+
             CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
                 PDFShopTheme(
                     darkTheme = isDark,
@@ -97,7 +116,8 @@ class MainActivity : FragmentActivity() {
                         if (requiresAuth) {
                             LockScreen(
                                 errorMessage = authError,
-                                onAuthenticateClick = { showBiometricPrompt() }
+                                onAuthenticateClick = { showBiometricPrompt() },
+                                modifier = Modifier.safeDrawingPadding()
                             )
                         } else {
                             AppNavHost(container = container)

@@ -31,6 +31,12 @@ import com.pdfcompress.CamScanner.domain.usecase.RepairPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.ScanDocumentUseCase
 import com.pdfcompress.CamScanner.domain.usecase.SplitPdfUseCase
 import com.pdfcompress.CamScanner.domain.usecase.UpdateSettingsUseCase
+import com.pdfcompress.CamScanner.domain.usecase.RotatePdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.ProtectPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.UnlockPdfUseCase
+import com.pdfcompress.CamScanner.domain.usecase.PdfMetadataUseCase
+import com.pdfcompress.CamScanner.domain.usecase.FlattenPdfUseCase
+
 
 class AppContainer(private val context: Context) {
 
@@ -127,5 +133,25 @@ class AppContainer(private val context: Context) {
 
     val updateSettingsUseCase: UpdateSettingsUseCase by lazy {
         UpdateSettingsUseCase(settingsRepository)
+    }
+
+    val rotatePdfUseCase: RotatePdfUseCase by lazy {
+        RotatePdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val protectPdfUseCase: ProtectPdfUseCase by lazy {
+        ProtectPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val unlockPdfUseCase: UnlockPdfUseCase by lazy {
+        UnlockPdfUseCase(pdfEngine, historyRepository)
+    }
+
+    val pdfMetadataUseCase: PdfMetadataUseCase by lazy {
+        PdfMetadataUseCase(pdfEngine, historyRepository)
+    }
+
+    val flattenPdfUseCase: FlattenPdfUseCase by lazy {
+        FlattenPdfUseCase(pdfEngine, historyRepository)
     }
 }

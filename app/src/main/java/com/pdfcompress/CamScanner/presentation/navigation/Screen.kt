@@ -17,4 +17,9 @@ sealed class Screen(val route: String) {
     data object IdCardScanner : Screen("id_card_scanner")
     data object PassportScanner : Screen("passport_scanner")
     data object BackupRestore : Screen("backup_restore")
+    data object Rotate : Screen("rotate")
+    data object Protect : Screen("protect")
+    data object Unlock : Screen("unlock")
+    data object Metadata : Screen("metadata")
+    data object Flatten : Screen("flatten")
 }

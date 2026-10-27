@@ -32,6 +32,11 @@ import androidx.compose.material.icons.filled.WaterDamage
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.automirrored.filled.RotateRight
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LayersClear
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -178,6 +183,12 @@ fun HistoryItemCard(item: HistoryItemUi) {
         ToolType.ID_CARD -> "سحب البطاقة" to Icons.Default.Badge
         ToolType.PASSPORT_MRZ -> "جواز السفر" to Icons.Default.QrCodeScanner
         ToolType.BACKUP_RESTORE -> "نسخ احتياطي" to Icons.Default.Security
+        ToolType.ROTATE -> "تدوير الصفحات" to Icons.AutoMirrored.Filled.RotateRight
+        ToolType.PROTECT -> "حماية وتشفير" to Icons.Default.Lock
+        ToolType.UNLOCK -> "إزالة الحماية" to Icons.Default.LockOpen
+        ToolType.METADATA -> "البيانات الوصفية" to Icons.Default.Info
+        ToolType.FLATTEN -> "تسطيح PDF" to Icons.Default.LayersClear
+        else -> "أداة PDF" to Icons.Default.Description
     }
 
     Card(
