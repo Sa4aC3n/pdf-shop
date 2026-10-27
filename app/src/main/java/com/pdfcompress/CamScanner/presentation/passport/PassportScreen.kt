@@ -110,16 +110,6 @@ fun PassportScreen(
         if (uri != null) viewModel.generateOfficialReport(uri)
     }
 
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            launchCameraInternal()
-        } else {
-            Toast.makeText(context, "يرجى منح إذن الكاميرا لالتقاط صورة جواز السفر", Toast.LENGTH_LONG).show()
-        }
-    }
-
     fun launchCameraInternal() {
         try {
             val cacheDir = File(context.cacheDir, "camera_passport").also { it.mkdirs() }
@@ -130,6 +120,16 @@ fun PassportScreen(
         } catch (e: Exception) {
             Toast.makeText(context, "تعذر تشغيل الكاميرا: ${e.message}", Toast.LENGTH_SHORT).show()
             galleryLauncher.launch("image/*")
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchCameraInternal()
+        } else {
+            Toast.makeText(context, "يرجى منح إذن الكاميرا لالتقاط صورة جواز السفر", Toast.LENGTH_LONG).show()
         }
     }
 

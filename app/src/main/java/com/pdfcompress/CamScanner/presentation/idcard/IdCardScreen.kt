@@ -1,6 +1,7 @@
 package com.pdfcompress.CamScanner.presentation.idcard
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -129,16 +130,6 @@ fun IdCardScreen(
         if (uri != null) viewModel.exportAsImage(uri)
     }
 
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            launchCameraInternal(targetCardSlot)
-        } else {
-            Toast.makeText(context, "يرجى منح إذن الكاميرا لتصوير البطاقة", Toast.LENGTH_LONG).show()
-        }
-    }
-
     fun launchCameraInternal(slot: String) {
         targetCardSlot = slot
         try {
@@ -151,6 +142,16 @@ fun IdCardScreen(
             Toast.makeText(context, "تعذر تشغيل الكاميرا: ${e.message}", Toast.LENGTH_SHORT).show()
             if (slot == "front") frontGalleryLauncher.launch("image/*")
             else backGalleryLauncher.launch("image/*")
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchCameraInternal(targetCardSlot ?: "front")
+        } else {
+            Toast.makeText(context, "يرجى منح إذن الكاميرا لتصوير البطاقة", Toast.LENGTH_LONG).show()
         }
     }
 
