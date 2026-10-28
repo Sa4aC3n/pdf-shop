@@ -466,6 +466,19 @@ fun AppNavHost(
                     onNavigateToUnlock = { navController.navigate(Screen.Unlock.route) },
                     onNavigateToMetadata = { navController.navigate(Screen.Metadata.route) },
                     onNavigateToFlatten = { navController.navigate(Screen.Flatten.route) },
+                    onNavigateToOrganize = { navController.navigate(Screen.Organize.route) },
+                    onNavigateToPageNumbers = { navController.navigate(Screen.PageNumbers.route) },
+                    onNavigateToGrayscale = { navController.navigate(Screen.Grayscale.route) },
+                    onNavigateToCrop = { navController.navigate(Screen.Crop.route) },
+                    onNavigateToRedact = { navController.navigate(Screen.Redact.route) },
+                    onNavigateToTextToPdf = { navController.navigate(Screen.TextToPdf.route) },
+                    onNavigateToMarkdownToPdf = { navController.navigate(Screen.MarkdownToPdf.route) },
+                    onNavigateToHtmlToPdf = { navController.navigate(Screen.HtmlToPdf.route) },
+                    onNavigateToPdfToMarkdown = { navController.navigate(Screen.PdfToMarkdown.route) },
+                    onNavigateToImageStudio = { navController.navigate(Screen.ImageStudio.route) },
+                    onNavigateToComparePdf = { navController.navigate(Screen.ComparePdf.route) },
+                    onNavigateToSignPdf = { navController.navigate(Screen.SignPdf.route) },
+                    onNavigateToPdfForms = { navController.navigate(Screen.PdfForms.route) },
 
                     onSelectLanguage = { lang ->
 

@@ -258,6 +258,19 @@ fun HomeScreen(
     onNavigateToUnlock: () -> Unit = {},
     onNavigateToMetadata: () -> Unit = {},
     onNavigateToFlatten: () -> Unit = {},
+    onNavigateToOrganize: () -> Unit = {},
+    onNavigateToPageNumbers: () -> Unit = {},
+    onNavigateToGrayscale: () -> Unit = {},
+    onNavigateToCrop: () -> Unit = {},
+    onNavigateToRedact: () -> Unit = {},
+    onNavigateToTextToPdf: () -> Unit = {},
+    onNavigateToMarkdownToPdf: () -> Unit = {},
+    onNavigateToHtmlToPdf: () -> Unit = {},
+    onNavigateToPdfToMarkdown: () -> Unit = {},
+    onNavigateToImageStudio: () -> Unit = {},
+    onNavigateToComparePdf: () -> Unit = {},
+    onNavigateToSignPdf: () -> Unit = {},
+    onNavigateToPdfForms: () -> Unit = {},
 
     onNavigateToBackupRestore: () -> Unit = {},
 
@@ -1202,6 +1215,19 @@ fun HomeScreen(
                         "unlock" -> onNavigateToUnlock()
                         "metadata" -> onNavigateToMetadata()
                         "flatten" -> onNavigateToFlatten()
+                        "organize" -> onNavigateToOrganize()
+                        "page_numbers" -> onNavigateToPageNumbers()
+                        "grayscale" -> onNavigateToGrayscale()
+                        "crop" -> onNavigateToCrop()
+                        "redact" -> onNavigateToRedact()
+                        "text_to_pdf" -> onNavigateToTextToPdf()
+                        "markdown_to_pdf" -> onNavigateToMarkdownToPdf()
+                        "html_to_pdf" -> onNavigateToHtmlToPdf()
+                        "pdf_to_markdown" -> onNavigateToPdfToMarkdown()
+                        "image_studio" -> onNavigateToImageStudio()
+                        "compare_pdf" -> onNavigateToComparePdf()
+                        "sign_pdf" -> onNavigateToSignPdf()
+                        "pdf_forms" -> onNavigateToPdfForms()
 
                     }
 
