@@ -48,21 +48,21 @@ android {
     val releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
         ?: System.getenv("RELEASE_KEY_PASSWORD")
         ?: System.getenv("KEY_PASSWORD")
-    val fallbackKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+
 
     signingConfigs {
         create("release") {
-            if (releaseKeystore.exists() && releaseStorePassword != null && releaseKeyAlias != null) {
-                storeFile = releaseKeystore
-                storePassword = releaseStorePassword
-                keyAlias = releaseKeyAlias
-                keyPassword = releaseKeyPassword ?: releaseStorePassword
-            } else if (fallbackKeystore.exists()) {
-                storeFile = fallbackKeystore
-                storePassword = "android"
-                keyAlias = "androiddebugkey"
-                keyPassword = "android"
-            }
+
+                storeFile = rootProject.file("release.keystore")
+                storePassword = releaseStorePassword ?: "camscanner2026"
+                keyAlias = releaseKeyAlias ?: "camscanner"
+                keyPassword = releaseKeyPassword ?: releaseStorePassword ?: "camscanner2026"
+
+
+
+
+
+
         }
     }
 
