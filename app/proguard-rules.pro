@@ -56,10 +56,10 @@
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 
 # R8 Aggressive Code Shrinking, Inlining, and DEX Code Obfuscation
--repackageclasses 'a'
--allowaccessmodification
--overloadaggressively
--mergeinterfacesaggressively
+# -repackageclasses 'a'
+# -allowaccessmodification
+# -overloadaggressively
+# -mergeinterfacesaggressively
 
 # Remove sensitive logging in release builds
 -assumenosideeffects class android.util.Log {

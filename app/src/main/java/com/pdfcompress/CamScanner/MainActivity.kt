@@ -1,12 +1,16 @@
 package com.pdfcompress.CamScanner
 
+import android.os.Build
 import android.os.Bundle
+import android.os.CancellationSignal
+import android.app.KeyguardManager
+import android.content.Context
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.DisposableEffect
-import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -38,14 +41,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.FragmentActivity
 import com.pdfcompress.CamScanner.core.ui.components.ModernGradientButton
 import com.pdfcompress.CamScanner.core.ui.theme.PDFShopTheme
 import com.pdfcompress.CamScanner.domain.model.AppLanguage
 import com.pdfcompress.CamScanner.domain.model.AppTheme
 import com.pdfcompress.CamScanner.presentation.navigation.AppNavHost
 
-class MainActivity : FragmentActivity() {
+class MainActivity : ComponentActivity() {
 
     private var isAuthenticated by mutableStateOf(false)
     private var authError by mutableStateOf<String?>(null)
@@ -88,7 +90,7 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
-                        DisposableEffect(isDark) {
+            DisposableEffect(isDark) {
                 enableEdgeToEdge(
                     statusBarStyle = if (isDark) {
                         SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
@@ -129,55 +131,71 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showBiometricPrompt() {
-        val biometricManager = androidx.biometric.BiometricManager.from(this)
-        val authenticators = androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK or
-            androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val keyguardManager = getSystemService(KeyguardManager::class.java)
+            if (keyguardManager == null || !keyguardManager.isDeviceSecure) {
+                isAuthenticated = true
+                authError = null
+                return
+            }
 
-        val canAuth = biometricManager.canAuthenticate(authenticators)
-        if (canAuth != androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS) {
-            isAuthenticated = true
-            authError = null
-            return
-        }
+            val executor = ContextCompat.getMainExecutor(this)
+            val promptBuilder = android.hardware.biometrics.BiometricPrompt.Builder(this)
+                .setTitle("قفل التطبيق")
+                .setSubtitle("يرجى التحقق من بصمتك أو رمز قفل الجهاز للمتابعة")
 
-        val executor = ContextCompat.getMainExecutor(this)
-        val biometricPrompt = BiometricPrompt(
-            this,
-            executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    isAuthenticated = true
-                    authError = null
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    super.onAuthenticationError(errorCode, errString)
-                    if (errorCode == BiometricPrompt.ERROR_NO_BIOMETRICS ||
-                        errorCode == BiometricPrompt.ERROR_HW_NOT_PRESENT ||
-                        errorCode == BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL
-                    ) {
-                        isAuthenticated = true
-                        authError = null
-                    } else {
-                        authError = errString.toString()
-                    }
-                }
-
-                override fun onAuthenticationFailed() {
-                    super.onAuthenticationFailed()
-                    authError = "فشل التحقق من البصمة، يرجى المحاولة مرة أخرى"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                promptBuilder.setAllowedAuthenticators(
+                    android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                    android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                )
+            } else {
+                promptBuilder.setNegativeButton("إلغاء", executor) { _, _ ->
+                    authError = "تم إلغاء التحقق"
                 }
             }
-        )
 
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("قفل التطبيق")
-            .setSubtitle("يرجى التحقق من بصمتك أو رمز قفل الجهاز للمتابعة")
-            .setAllowedAuthenticators(authenticators)
-            .build()
+            val prompt = promptBuilder.build()
+            val cancellationSignal = CancellationSignal()
 
-        biometricPrompt.authenticate(promptInfo)
+            prompt.authenticate(
+                cancellationSignal,
+                executor,
+                object : android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: android.hardware.biometrics.BiometricPrompt.AuthenticationResult?) {
+                        super.onAuthenticationSucceeded(result)
+                        isAuthenticated = true
+                        authError = null
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                        super.onAuthenticationError(errorCode, errString)
+                        if (errorCode == android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS ||
+                            errorCode == android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT
+                        ) {
+                            isAuthenticated = true
+                            authError = null
+                        } else {
+                            authError = errString?.toString()
+                        }
+                    }
+
+                    override fun onAuthenticationFailed() {
+                        super.onAuthenticationFailed()
+                        authError = "فشل التحقق من البصمة، يرجى المحاولة مرة أخرى"
+                    }
+                }
+            )
+        } else {
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            if (keyguardManager == null || !keyguardManager.isKeyguardSecure) {
+                isAuthenticated = true
+                authError = null
+            } else {
+                isAuthenticated = true
+                authError = null
+            }
+        }
     }
 }
 
